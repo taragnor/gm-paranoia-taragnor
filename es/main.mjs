@@ -8,7 +8,6 @@ const logpath = "";
 
 class TaragnorSecurity {
 
-	static count = 0; // for debugging only
 
 	static async SecurityInit() {
 		console.log("*** SECURITY ENABLED ***");
@@ -17,7 +16,6 @@ class TaragnorSecurity {
 		this.awaitedRolls = [];
 		if (this.replaceRollProtoFunctions)
 			this.replaceRollProtoFunctions();
-		this.count = 0;
 	}
 
 	static rollRequest(dice_expr = "1d6", timestamp, targetGMId) {
@@ -53,6 +51,9 @@ class TaragnorSecurity {
 			await roll._oldeval( {async: true});
 			this.replaceRoll(roll, rollData);
 			const awaited = this.awaitedRolls.find( x=> x.timestamp == player_timestamp && player_id == game.user.id);
+			if (!roll.total || Number.isNaN(roll.total)) {
+				throw new Error("NAN ROLL");
+			}
 			awaited.resolve(roll);
 			this.awaitedRolls = this.awaitedRolls.filter (x => x != awaited);
 			return roll;
@@ -132,18 +133,10 @@ class TaragnorSecurity {
 		Roll.prototype._oldeval = Roll.prototype.evaluate;
 		Roll.prototype.evaluate = function (options ={}) {
 			if (game.user.isGM) {
-				if (TaragnorSecurity.count++ > 25) {
-					console.error("Count overflow");
-					throw new Error("trace!");
-				}
-				console.log(`Running GM roll ${TaragnorSecurity.count}`);
+				console.log(`Running GM roll`);
 				return this._oldeval(options);
 			}
 			else {
-				if (TaragnorSecurity.count++ > 25) {
-					console.error("Count overflow");
-					throw new Error("trace!");
-				}
 				console.log("Running Secure Roll");
 				return TaragnorSecurity.secureRoll(this);
 			}
