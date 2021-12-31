@@ -9,8 +9,16 @@ export class SecurityLogger {
 		//TODO: Setup log file logic
 	}
 
-	logRoll(roll) {
-
+	async logRoll(roll, player_id, gm_timestamp) {
+		const logObj = {
+			roll,
+			player_id,
+			timestamp:gm_timestamp
+		};
+		this.logs.push(logObj );
+		console.log( "Logged", logObj);
+		if (!this.logFileEnabled) return;
+		//TODO: actually write to file
 
 	}
 

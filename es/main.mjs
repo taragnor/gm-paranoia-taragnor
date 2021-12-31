@@ -7,11 +7,17 @@ const ROLL_REQUEST = "ROLL_REQUEST";
 const logpath = "";
 
 class TaragnorSecurity {
+
+	static count = 0; // for debugging only
+
 	static async SecurityInit() {
 		console.log("*** SECURITY ENABLED ***");
 		game.socket.on("module.secure-foundry", this.socketHandler.bind(this));
 		this.logger = new SecurityLogger(logpath);
 		this.awaitedRolls = [];
+		if (this.replaceRollProtoFunctions)
+			this.replaceRollProtoFunctions();
+		this.count = 0;
 	}
 
 	static rollRequest(dice_expr = "1d6", timestamp, targetGMId) {
@@ -36,15 +42,16 @@ class TaragnorSecurity {
 		});
 	}
 
+	static async displayRoll(roll) {
+			console.log(`original terms: ${roll.terms.map( x=> x.results.map(y=> y.result))}`);
+			console.log(`original total: ${roll.total}`);
+	}
+
 	static async rollRecieve({dice: rollData, player_timestamp, player_id}) {
 		try {
 			const roll = new Roll(rollData.formula);
-			await roll.roll( {async: true});
-			// console.log(`original total: ${roll.total}`);
-			for (let i = 0; i < rollData.terms.length; i++)
-				for (let j = 0; j< rollData.terms[i].results.length; j++)
-					roll.terms[i].results[j].result = rollData.terms[i].results[j].result;
-			roll._total = rollData.total;
+			await roll._oldeval( {async: true});
+			this.replaceRoll(roll, rollData);
 			const awaited = this.awaitedRolls.find( x=> x.timestamp == player_timestamp && player_id == game.user.id);
 			awaited.resolve(roll);
 			this.awaitedRolls = this.awaitedRolls.filter (x => x != awaited);
@@ -54,6 +61,13 @@ class TaragnorSecurity {
 			console.log(rollData);
 			return rollData;
 		}
+	}
+
+	static replaceRoll(roll, rollData) {
+		for (let i = 0; i < rollData.terms.length; i++)
+			for (let j = 0; j< rollData.terms[i].results.length; j++)
+				roll.terms[i].results[j].result = rollData.terms[i].results[j].result;
+		roll._total = rollData.total;
 	}
 
 	static socketSend(data) {
@@ -67,7 +81,7 @@ class TaragnorSecurity {
 			return;
 		}
 		const dice = new Roll(rollString);
-		await dice.roll({async:true});
+		await dice._oldeval({async:true});
 		const gm_timestamp = this.logger.getTimeStamp();
 		this.rollSend(dice, gm_timestamp, player_id, timestamp);
 		await this.logger.logRoll(dice, player_id, gm_timestamp);
@@ -92,11 +106,12 @@ class TaragnorSecurity {
 
 	static async secureRoll (unevaluatedRoll) {
 		if (typeof unevaluatedRoll == "string") {
+			//convert string roll to real roll
 			unevaluatedRoll = new Roll(unevaluatedRoll);
-			console.log("Converted String roll to real roll");
+			// console.log("Converted String roll to real roll");
 		}
 		if (game.user.isGM)  {
-			return await unevaluatedRoll.roll({async: true});
+			return await unevaluatedRoll.evaluate({async: true});
 		}
 		return new Promise(( conf, rej) => {
 			const timestamp = this.logger.getTimeStamp();
@@ -108,9 +123,31 @@ class TaragnorSecurity {
 				reject: rej,
 			});
 			const GMId = game.users.find( x=> x.isGM).id;
+			if (!GMId) rej(new Error("No GM in game"));
 			this.rollRequest(unevaluatedRoll.formula, timestamp, GMId);
-
 		});
+	}
+
+	static replaceRollProtoFunctions() {
+		Roll.prototype._oldeval = Roll.prototype.evaluate;
+		Roll.prototype.evaluate = function (options ={}) {
+			if (game.user.isGM) {
+				if (TaragnorSecurity.count++ > 25) {
+					console.error("Count overflow");
+					throw new Error("trace!");
+				}
+				console.log(`Running GM roll ${TaragnorSecurity.count}`);
+				return this._oldeval(options);
+			}
+			else {
+				if (TaragnorSecurity.count++ > 25) {
+					console.error("Count overflow");
+					throw new Error("trace!");
+				}
+				console.log("Running Secure Roll");
+				return TaragnorSecurity.secureRoll(this);
+			}
+		}
 	}
 
 }
@@ -120,10 +157,9 @@ function socketTest() {
 }
 
 
-
-
 Hooks.on("ready", TaragnorSecurity.SecurityInit.bind(TaragnorSecurity));
 
 window.secureRoll = TaragnorSecurity.secureRoll.bind(TaragnorSecurity);
+window.sec = TaragnorSecurity;
 
 window.rollRequest = TaragnorSecurity.rollRequest.bind(TaragnorSecurity);
