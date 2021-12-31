@@ -1,0 +1,11 @@
+{
+  "name": "secure-foundry",
+  "title": "Taragnor's Foundry Security",
+  "version": "0.0.1",
+  "esmodules": ["./js/main.mjs"],
+  "styles": ["./css/style.css"],
+  "author": "taragnor",
+  "minimumCoreVersion": "9",
+  "compatibleCoreVersion": "9",
+  "socket": true
+}
