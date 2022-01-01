@@ -135,7 +135,7 @@ class TaragnorSecurity {
 	static replaceRollProtoFunctions() {
 		Roll.prototype._oldeval = Roll.prototype.evaluate;
 
-		Roll.prototype.evaluate = async function (options ={}) {
+		Roll.prototype.evaluate = function (options ={}) {
 			if ( this._evaluated ) {
 				throw new Error(`The ${this.constructor.name} has already been evaluated and is now immutable`);
 			}
@@ -145,7 +145,7 @@ class TaragnorSecurity {
 				return this;
 			}
 			else {
-				console.log("Running Secure Client Roll");
+				console.warn("Running Secure Client Roll");
 				const roll=  await TaragnorSecurity.secureRoll(this);
 				console.log(roll);
 				TaragnorSecurity.replaceRoll(this, roll);
