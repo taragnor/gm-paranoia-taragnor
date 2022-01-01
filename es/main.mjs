@@ -153,20 +153,19 @@ class TaragnorSecurity {
 	}
 
 	static verifyChatRoll(chatmessage,b,c,d) {
-		console.log("Running role verify");
 		if (!game.user.isGM) return;
 		if (chatmessage.user.isGM) //this does not work
 			return true;
 		console.log("Analyzing Message...");
-		console.log(chatmessage);
+		// console.log(chatmessage);
 		const timestamp = chatmessage.data.timestamp;
-		const player_id = chatmessage.user.id
+		const player_id = chatmessage.user.id;
 		if (chatmessage.roll) {
 			const verified = this.logger.verifyRoll(chatmessage.roll, timestamp, player_id);
 		   if (verified)
 				console.log("Message is okay");
 			else
-				console.log("Message is a dirty cheater");
+				console.log(`${chatmessage.user.name} is a dirty cheater: Chat Id:${chatmessage.id}`);
 		}
 	}
 

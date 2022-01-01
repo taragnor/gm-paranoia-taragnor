@@ -19,7 +19,8 @@ export class SecurityLogger {
 		const logObj = {
 			roll,
 			player_id,
-			timestamp:gm_timestamp
+			timestamp:gm_timestamp,
+			used: false
 		};
 		this.logs.push(logObj );
 		console.log( "Logged", logObj);
@@ -29,10 +30,20 @@ export class SecurityLogger {
 	}
 
 	verifyRoll(roll, timestamp, player_id) {
-		return this.logs.some(x=> x.player_id == player_id
+		const log =  this.logs.find(x=> x.player_id == player_id
 			&& timestamp - x.timestamp < 10000
 			&& x.roll.total == roll.total
 		);
+		if (!log) {
+			console.warn("Roll not found in database");
+			return false;
+	}
+		if (log.used) {
+			console.warn("Roll was already used");
+			return false;
+		}
+		log.used = true;
+		return true;
 	}
 
 
