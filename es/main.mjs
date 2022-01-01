@@ -16,7 +16,7 @@ class TaragnorSecurity {
 		this.awaitedRolls = [];
 		if (this.replaceRollProtoFunctions)
 			this.replaceRollProtoFunctions();
-		// Hooks.on("renderChatMessage", this.verifyChatRoll.bind(this));
+		Hooks.on("renderChatMessage", this.verifyChatRoll.bind(this));
 	}
 
 	static rollRequest(dice_expr = "1d6", timestamp, targetGMId) {
@@ -48,9 +48,6 @@ class TaragnorSecurity {
 
 	static async rollRecieve({dice: rollData, player_timestamp, player_id}) {
 		try {
-			// const roll = new Roll(rollData.formula);
-			// await roll._oldeval( {async: true});
-			// this.replaceRoll(roll, rollData);
 			const roll = Roll.fromJSON(rollData);
 			const awaited = this.awaitedRolls.find( x=> x.timestamp == player_timestamp && player_id == game.user.id);
 			if (!roll.total || Number.isNaN(roll.total)) {
@@ -84,8 +81,10 @@ class TaragnorSecurity {
 			console.log(`${gm_id}`);
 			return;
 		}
+		// console.log(`Recieved request to roll ${rollString}`);
 		const dice = new Roll(rollString);
 		await dice._oldeval({async:true});
+		// this.displayRoll(dice);
 		const gm_timestamp = this.logger.getTimeStamp();
 		this.rollSend(JSON.stringify(dice), gm_timestamp, player_id, timestamp);
 		await this.logger.logRoll(dice, player_id, gm_timestamp);
@@ -135,7 +134,7 @@ class TaragnorSecurity {
 	static replaceRollProtoFunctions() {
 		Roll.prototype._oldeval = Roll.prototype.evaluate;
 
-		Roll.prototype.evaluate = function (options ={}) {
+		Roll.prototype.evaluate = async function (options ={}) {
 			if ( this._evaluated ) {
 				throw new Error(`The ${this.constructor.name} has already been evaluated and is now immutable`);
 			}
@@ -143,10 +142,9 @@ class TaragnorSecurity {
 				console.warn("Running GM Roll");
 				this._oldeval(options);
 				return this;
-			}
-			else {
+			} else {
 				console.warn("Running Secure Client Roll");
-				const roll=  await TaragnorSecurity.secureRoll(this);
+				const roll= await  TaragnorSecurity.secureRoll(this);
 				console.log(roll);
 				TaragnorSecurity.replaceRoll(this, roll);
 				return this;
@@ -155,9 +153,11 @@ class TaragnorSecurity {
 	}
 
 	static verifyChatRoll(chatmessage,b,c,d) {
+		console.log("Running role verify");
 		if (!game.user.isGM) return;
-		if (!chatmessage.hasPlayerOwner)
+		if (chatmessage.user.isGM) //this does not work
 			return true;
+		console.log("Analyzing Message...");
 		console.log(chatmessage);
 		const timestamp = chatmessage.data.timestamp;
 		const player_id = chatmessage.user.id
