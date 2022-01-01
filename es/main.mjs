@@ -16,6 +16,7 @@ class TaragnorSecurity {
 		this.awaitedRolls = [];
 		if (this.replaceRollProtoFunctions)
 			this.replaceRollProtoFunctions();
+		// Hooks.on("renderChatMessage", this.verifyChatRoll.bind(this));
 	}
 
 	static rollRequest(dice_expr = "1d6", timestamp, targetGMId) {
@@ -47,9 +48,10 @@ class TaragnorSecurity {
 
 	static async rollRecieve({dice: rollData, player_timestamp, player_id}) {
 		try {
-			const roll = new Roll(rollData.formula);
-			await roll._oldeval( {async: true});
-			this.replaceRoll(roll, rollData);
+			// const roll = new Roll(rollData.formula);
+			// await roll._oldeval( {async: true});
+			// this.replaceRoll(roll, rollData);
+			const roll = Roll.fromJSON(rollData);
 			const awaited = this.awaitedRolls.find( x=> x.timestamp == player_timestamp && player_id == game.user.id);
 			if (!roll.total || Number.isNaN(roll.total)) {
 				throw new Error("NAN ROLL");
@@ -67,8 +69,9 @@ class TaragnorSecurity {
 	static replaceRoll(roll, rollData) {
 		for (let i = 0; i < rollData.terms.length; i++)
 			for (let j = 0; j< rollData.terms[i].results.length; j++)
-				roll.terms[i].results[j].result = rollData.terms[i].results[j].result;
+				roll.terms[i].results[j] = rollData.terms[i].results[j];
 		roll._total = rollData.total;
+		roll._evaluated = true;
 	}
 
 	static socketSend(data) {
@@ -84,7 +87,7 @@ class TaragnorSecurity {
 		const dice = new Roll(rollString);
 		await dice._oldeval({async:true});
 		const gm_timestamp = this.logger.getTimeStamp();
-		this.rollSend(dice, gm_timestamp, player_id, timestamp);
+		this.rollSend(JSON.stringify(dice), gm_timestamp, player_id, timestamp);
 		await this.logger.logRoll(dice, player_id, gm_timestamp);
 	}
 
@@ -114,7 +117,7 @@ class TaragnorSecurity {
 		if (game.user.isGM)  {
 			return await unevaluatedRoll.evaluate({async: true});
 		}
-		return new Promise(( conf, rej) => {
+		return await new Promise(( conf, rej) => {
 			const timestamp = this.logger.getTimeStamp();
 			this.awaitedRolls.push( {
 				playerId: game.user.id,
@@ -131,15 +134,39 @@ class TaragnorSecurity {
 
 	static replaceRollProtoFunctions() {
 		Roll.prototype._oldeval = Roll.prototype.evaluate;
-		Roll.prototype.evaluate = function (options ={}) {
+
+		Roll.prototype.evaluate = async function (options ={}) {
+			if ( this._evaluated ) {
+				throw new Error(`The ${this.constructor.name} has already been evaluated and is now immutable`);
+			}
 			if (game.user.isGM) {
-				console.log(`Running GM roll`);
-				return this._oldeval(options);
+				console.warn("Running GM Roll");
+				this._oldeval(options);
+				return this;
 			}
 			else {
-				console.log("Running Secure Roll");
-				return TaragnorSecurity.secureRoll(this);
+				console.log("Running Secure Client Roll");
+				const roll=  await TaragnorSecurity.secureRoll(this);
+				console.log(roll);
+				TaragnorSecurity.replaceRoll(this, roll);
+				return this;
 			}
+		}
+	}
+
+	static verifyChatRoll(chatmessage,b,c,d) {
+		if (!game.user.isGM) return;
+		if (!chatmessage.hasPlayerOwner)
+			return true;
+		console.log(chatmessage);
+		const timestamp = chatmessage.data.timestamp;
+		const player_id = chatmessage.user.id
+		if (chatmessage.roll) {
+			const verified = this.logger.verifyRoll(chatmessage.roll, timestamp, player_id);
+		   if (verified)
+				console.log("Message is okay");
+			else
+				console.log("Message is a dirty cheater");
 		}
 	}
 
@@ -151,6 +178,7 @@ function socketTest() {
 
 
 Hooks.on("ready", TaragnorSecurity.SecurityInit.bind(TaragnorSecurity));
+
 
 window.secureRoll = TaragnorSecurity.secureRoll.bind(TaragnorSecurity);
 window.sec = TaragnorSecurity;
