@@ -65,8 +65,10 @@ class TaragnorSecurity {
 
 	static replaceRoll(roll, rollData) {
 		for (let i = 0; i < rollData.terms.length; i++)
-			for (let j = 0; j< rollData.terms[i].results.length; j++)
-				roll.terms[i].results[j] = rollData.terms[i].results[j];
+			if (rollData.terms[i].results) //check for 0 dice rolls
+				for (let j = 0; j< rollData.terms[i].results.length; j++)
+					if (rollData.terms[i].results) //check for 0 dice rolls
+						roll.terms[i].results[j] = rollData.terms[i].results[j];
 		roll._total = rollData.total;
 		roll._evaluated = true;
 	}
@@ -145,7 +147,7 @@ class TaragnorSecurity {
 			} else {
 				console.warn("Running Secure Client Roll");
 				const roll= await  TaragnorSecurity.secureRoll(this);
-				console.log(roll);
+				// console.log(roll);
 				TaragnorSecurity.replaceRoll(this, roll);
 				return this;
 			}
