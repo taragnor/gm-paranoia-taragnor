@@ -61,10 +61,11 @@ class TaragnorSecurity {
 		try {
 			const roll = Roll.fromJSON(rollData);
 			const awaited = this.awaitedRolls.find( x=> x.timestamp == player_timestamp && player_id == game.user.id);
-			if (Number.isNaN(roll.total)) {
+			if (Number.isNaN(roll.total) || roll.total == undefined) {
 				throw new Error("NAN ROLL");
 			}
 			awaited.resolve(roll);
+			Debug(roll);
 			this.awaitedRolls = this.awaitedRolls.filter (x => x != awaited);
 			return roll;
 		} catch (e) {
@@ -168,14 +169,13 @@ class TaragnorSecurity {
 			if ( this._evaluated ) {
 				throw new Error(`The ${this.constructor.name} has already been evaluated and is now immutable`);
 			}
+			if (options.async === false)
+				console.log("Mongrel tyring to use sync rolling");
 			if (game.user.isGM) {
-				// console.warn("Running GM Roll");
-				this._oldeval(options);
-				return this;
+				return this._oldeval(options);
 			} else {
 				// console.warn("Running Secure Client Roll");
 				const roll= await  TaragnorSecurity.secureRoll(this);
-				// console.log(roll);
 				TaragnorSecurity.replaceRoll(this, roll);
 				return this;
 			}
@@ -186,14 +186,12 @@ class TaragnorSecurity {
 		if (!game.user.isGM) return;
 		const timestamp = chatmessage.data.timestamp;
 		if (!this.startScan && timestamp > this.logger.startTime) {
-			console.log("scan started");
+			// console.log("scan started");
 			this.startScan = true; //we've reached the new messages so we can start scanning
 		}
 		if (chatmessage.user.isGM)
 			return true;
-		// console.log(chatmessage);
 		if (!this.startScan)  {
-			// console.log("Scan not started... bailing");
 			return true;
 		}
 		const player_id = chatmessage.user.id;
@@ -227,6 +225,7 @@ class TaragnorSecurity {
 
 
 	Hooks.on("ready", TaragnorSecurity.SecurityInit.bind(TaragnorSecurity));
+
 
 
 	window.secureRoll = TaragnorSecurity.secureRoll.bind(TaragnorSecurity);
