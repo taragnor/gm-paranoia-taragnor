@@ -195,12 +195,17 @@ class TaragnorSecurity {
 			return true;
 		}
 		const player_id = chatmessage.user.id;
-		if (!chatmessage.roll) return true;
-		const verified = this.logger.verifyRoll(chatmessage.roll, timestamp, player_id, chatmessage.id);
+		if (!chatmessage.roll) {
+			if (!html.hasClass("roll-verified")) //tries to resist forged roll-verified message on a non-roll message
+				return true;
+		}
+		const logger_response = this.logger.verifyRoll(chatmessage.roll, timestamp, player_id, chatmessage.id);
+		const verified = (chatmessage.roll) ? logger_response : "no-roll";
 		const insert_target = html.find(".message-header");
 		switch(verified) {
-
 			case "already_done":
+				console.log("Already Done");
+				this.startTextAnimation(html);
 				break;
 			case "sus":
 				html.addClass("player-sus");
@@ -208,11 +213,12 @@ class TaragnorSecurity {
 				this.dispatchCheaterMsg(player_id, "sus");
 				break;
 			case "verified":
+				const insert = $(`<div class="roll-verified"> Roll Verified </div>`);
+				this.startTextAnimation(insert);
 				html.addClass("roll-verified");
-				$(`<div class="roll-verified"> Roll Verified </div>`).insertBefore(insert_target);
-				// console.log("Message is okay");
+				insert.insertBefore(insert_target);
 				break;
-			case "not found": case "roll_used":
+			case "not found": case "roll_used": case "no-roll":
 				html.addClass("cheater-detected");
 				$(`<div class="cheater-detected"> Cheater detected </div>`).insertBefore(insert_target);
 				// console.log(`${chatmessage.user.name} is a dirty cheater: Chat Id:${chatmessage.id}`);
@@ -220,6 +226,23 @@ class TaragnorSecurity {
 				break;
 		}
 		return true;
+	}
+
+	static startTextAnimation (html) {
+		const sleep = function(time)  {
+			return new Promise ( (resolve, reject) => {
+				setTimeout(resolve, time);
+			});
+		}
+		const changeText=  async () =>  {
+			await sleep(5000 + Math.random() * 10000);
+			const original = html.text();
+			html.text("No Cheating");
+			await sleep(5000 + Math.random() * 10000);
+			html.text(original);
+			setTimeout(changeText, 10000 + Math.random() * 20000);
+		}
+		setTimeout(changeText, 1000);
 	}
 }
 
