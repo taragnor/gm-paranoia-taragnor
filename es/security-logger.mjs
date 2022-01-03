@@ -1,5 +1,6 @@
 export class SecurityLogger {
 	constructor (logPath) {
+		this.startTime = Date.now();
 		this.logs = [];
 		if (!logPath) {
 			this.logFileEnabled = false;
@@ -20,7 +21,7 @@ export class SecurityLogger {
 			roll,
 			player_id,
 			timestamp:gm_timestamp,
-			used: false
+			used: null
 		};
 		this.logs.push(logObj );
 		console.log( "Logged", logObj);
@@ -29,21 +30,24 @@ export class SecurityLogger {
 
 	}
 
-	verifyRoll(roll, timestamp, player_id) {
+	verifyRoll(roll, timestamp, player_id, chatlog_id) {
 		const log =  this.logs.find(x=> x.player_id == player_id
 			&& timestamp - x.timestamp < 10000
 			&& x.roll.total == roll.total
 		);
 		if (!log) {
 			console.warn("Roll not found in database");
-			return false;
-	}
-		if (log.used) {
-			console.warn("Roll was already used");
-			return false;
+			return "not found";
 		}
-		log.used = true;
-		return true;
+		if (log.used && chatlog_id != log.used) {
+			return "already_done";
+		}
+		if (log.used && chatlog_id != log.used) {
+			console.warn("Roll was already used");
+			return "roll_used";
+		}
+		log.used = chatlog_id;
+		return "verified";
 	}
 
 

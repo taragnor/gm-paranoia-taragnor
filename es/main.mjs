@@ -1,4 +1,5 @@
 import { SecurityLogger } from "./security-logger.mjs";
+import { } from "./debug.mjs";
 
 
 
@@ -16,6 +17,7 @@ class TaragnorSecurity {
 		this.awaitedRolls = [];
 		if (this.replaceRollProtoFunctions)
 			this.replaceRollProtoFunctions();
+		this.startScan = false;
 		Hooks.on("renderChatMessage", this.verifyChatRoll.bind(this));
 	}
 
@@ -42,8 +44,8 @@ class TaragnorSecurity {
 	}
 
 	static async displayRoll(roll) {
-			console.log(`original terms: ${roll.terms.map( x=> x.results.map(y=> y.result))}`);
-			console.log(`original total: ${roll.total}`);
+		console.log(`original terms: ${roll.terms.map( x=> x.results.map(y=> y.result))}`);
+		console.log(`original total: ${roll.total}`);
 	}
 
 	static async rollRecieve({dice: rollData, player_timestamp, player_id}) {
@@ -71,6 +73,7 @@ class TaragnorSecurity {
 						roll.terms[i].results[j] = rollData.terms[i].results[j];
 		roll._total = rollData.total;
 		roll._evaluated = true;
+		return roll;
 	}
 
 	static socketSend(data) {
@@ -154,34 +157,48 @@ class TaragnorSecurity {
 		}
 	}
 
-	static verifyChatRoll(chatmessage,b,c,d) {
+	static verifyChatRoll(chatmessage, html,c,d) {
+		const timestamp = chatmessage.data.timestamp;
+		console.log( `Logger Start: ${this.logger.startTime}, current stamp:${timestamp}`);
+		if (!this.startScan && timestamp > this.logger.startTime) {
+			console.log("scan started");
+			this.startScan = true; //we've reached the new messages so we can start scanning
+		}
 		if (!game.user.isGM) return;
 		if (chatmessage.user.isGM) //this does not work
 			return true;
-		console.log("Analyzing Message...");
 		// console.log(chatmessage);
-		const timestamp = chatmessage.data.timestamp;
-		const player_id = chatmessage.user.id;
-		if (chatmessage.roll) {
-			const verified = this.logger.verifyRoll(chatmessage.roll, timestamp, player_id);
-		   if (verified)
-				console.log("Message is okay");
-			else
-				console.log(`${chatmessage.user.name} is a dirty cheater: Chat Id:${chatmessage.id}`);
+		if (!this.startScan)  {
+			console.log("Scan not started... bailing");
+			return true;
 		}
+		const player_id = chatmessage.user.id;
+		if (!chatmessage.roll) return true;
+		const verified = this.logger.verifyRoll(chatmessage.roll, timestamp, player_id, chatmessage.id);
+		const insert_target = html.find(".message-header");
+		switch(verified) {
+
+			case "already_done":
+				break;
+			case "verified":
+				$(`<div class="roll-verified"> Roll Verified </div>`).insertBefore(insert_target);
+				console.log("Message is okay");
+				break;
+			case "not found": case "roll_used":
+				html.addClass("cheater-detected");
+				$(`<div class="cheater-detected"> Cheater detected </div>`).insertBefore(insert_target);
+				console.log(`${chatmessage.user.name} is a dirty cheater: Chat Id:${chatmessage.id}`);
+				break;
+		}
+		return true;
 	}
-
-}
-
-function socketTest() {
-	socketSend({"test": "Sending shit"});
 }
 
 
-Hooks.on("ready", TaragnorSecurity.SecurityInit.bind(TaragnorSecurity));
+	Hooks.on("ready", TaragnorSecurity.SecurityInit.bind(TaragnorSecurity));
 
 
-window.secureRoll = TaragnorSecurity.secureRoll.bind(TaragnorSecurity);
-window.sec = TaragnorSecurity;
+	window.secureRoll = TaragnorSecurity.secureRoll.bind(TaragnorSecurity);
+	window.sec = TaragnorSecurity;
 
-window.rollRequest = TaragnorSecurity.rollRequest.bind(TaragnorSecurity);
+	window.rollRequest = TaragnorSecurity.rollRequest.bind(TaragnorSecurity);

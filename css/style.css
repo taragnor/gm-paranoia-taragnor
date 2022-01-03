@@ -1,0 +1,19 @@
+.chat-message .cheater-detected {
+	text-align: center;
+	font-weight: bold;
+	text-decoration: underline;
+	font-size: larger;
+	border-bottom: 3px solid black;
+}
+
+
+.chat-message.cheater-detected {
+	background-color: red !important;
+	background-image: none !important;
+}
+
+.chat-message .roll-verified {
+	text-align: center;
+	font-size: smaller;
+	border-bottom: 2px solid black;
+}
