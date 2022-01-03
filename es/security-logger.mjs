@@ -33,7 +33,7 @@ export class SecurityLogger {
 	verifyRoll(roll, timestamp, player_id, chatlog_id) {
 		const log =  this.logs.find(x=> x.player_id == player_id
 			&& timestamp - x.timestamp < 10000
-			&& x.roll.total == roll.total
+			&& SecurityLogger.rollsIdentical(x.roll, roll)
 		);
 		if (!log) {
 			console.warn("Roll not found in database");
@@ -50,6 +50,15 @@ export class SecurityLogger {
 		return "verified";
 	}
 
+	static rollsIdentical(rollA, rollB) {
+		if (rollA.total != rollB.total)
+			return false;
+		return rollA.terms.every( (term, i) => {
+			return term.results.every( (result, j) => {
+				return result.result == rollB.terms[i].results[j].result;
+			})
+		});
+	}
 
 	getTimeStamp() {
 		return Date.now();
