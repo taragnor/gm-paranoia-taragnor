@@ -5,6 +5,7 @@ import { } from "./debug.mjs";
 
 const ROLL_MADE = "ROLL_MADE";
 const ROLL_REQUEST = "ROLL_REQUEST";
+const PUNISH_MONGREL= "CHEATER_DETECTED";
 const logpath = "";
 
 class TaragnorSecurity {
@@ -32,6 +33,14 @@ class TaragnorSecurity {
 		});
 	}
 
+	static dispatchCheaterMsg(player_id, infraction) {
+		this.socketSend( {
+			command: PUNISH_MONGREL,
+			infraction,
+			player_id
+		});
+	}
+
 	static rollSend(dice, GMtimestamp, player_id, player_timestamp) {
 		this.socketSend({
 			command:ROLL_MADE,
@@ -52,7 +61,7 @@ class TaragnorSecurity {
 		try {
 			const roll = Roll.fromJSON(rollData);
 			const awaited = this.awaitedRolls.find( x=> x.timestamp == player_timestamp && player_id == game.user.id);
-			if (!roll.total || Number.isNaN(roll.total)) {
+			if (Number.isNaN(roll.total)) {
 				throw new Error("NAN ROLL");
 			}
 			awaited.resolve(roll);
@@ -95,6 +104,19 @@ class TaragnorSecurity {
 		await this.logger.logRoll(dice, player_id, gm_timestamp);
 	}
 
+	static async cheatDetectRecieved({player_id, infraction}) {
+		if (game.user.id != player_id)
+			return;
+		switch (infraction) {
+			case "cheater":
+				console.log("CHEATING MONGREL DETECTED");
+				break;
+			case "sus":
+				console.log("YOU ARE SUS");
+				break;
+		}
+	}
+
 	static async socketHandler(data) {
 		if (!data?.command)
 			throw new Error("Malformed Socket Transmission");
@@ -104,6 +126,9 @@ class TaragnorSecurity {
 				return true;
 			case ROLL_MADE:
 				await this.rollRecieve(data);
+				return true;
+			case PUNISH_MONGREL:
+				await this.cheatDetectRecieved(data);
 				return true;
 			default:
 				console.warn(`Unknown socket command: ${command}`);
@@ -144,11 +169,11 @@ class TaragnorSecurity {
 				throw new Error(`The ${this.constructor.name} has already been evaluated and is now immutable`);
 			}
 			if (game.user.isGM) {
-				console.warn("Running GM Roll");
+				// console.warn("Running GM Roll");
 				this._oldeval(options);
 				return this;
 			} else {
-				console.warn("Running Secure Client Roll");
+				// console.warn("Running Secure Client Roll");
 				const roll= await  TaragnorSecurity.secureRoll(this);
 				// console.log(roll);
 				TaragnorSecurity.replaceRoll(this, roll);
@@ -158,18 +183,17 @@ class TaragnorSecurity {
 	}
 
 	static verifyChatRoll(chatmessage, html,c,d) {
+		if (!game.user.isGM) return;
 		const timestamp = chatmessage.data.timestamp;
-		console.log( `Logger Start: ${this.logger.startTime}, current stamp:${timestamp}`);
 		if (!this.startScan && timestamp > this.logger.startTime) {
 			console.log("scan started");
 			this.startScan = true; //we've reached the new messages so we can start scanning
 		}
-		if (!game.user.isGM) return;
-		if (chatmessage.user.isGM) //this does not work
+		if (chatmessage.user.isGM)
 			return true;
 		// console.log(chatmessage);
 		if (!this.startScan)  {
-			console.log("Scan not started... bailing");
+			// console.log("Scan not started... bailing");
 			return true;
 		}
 		const player_id = chatmessage.user.id;
@@ -180,14 +204,21 @@ class TaragnorSecurity {
 
 			case "already_done":
 				break;
+			case "sus":
+				html.addClass("player-sus");
+				$(`<div class="player-sus"> ${chatmessage.user.name} is Sus </div>`).insertBefore(insert_target);
+				this.dispatchCheaterMsg(player_id, "sus");
+				break;
 			case "verified":
+				html.addClass("roll-verified");
 				$(`<div class="roll-verified"> Roll Verified </div>`).insertBefore(insert_target);
-				console.log("Message is okay");
+				// console.log("Message is okay");
 				break;
 			case "not found": case "roll_used":
 				html.addClass("cheater-detected");
 				$(`<div class="cheater-detected"> Cheater detected </div>`).insertBefore(insert_target);
-				console.log(`${chatmessage.user.name} is a dirty cheater: Chat Id:${chatmessage.id}`);
+				// console.log(`${chatmessage.user.name} is a dirty cheater: Chat Id:${chatmessage.id}`);
+				this.dispatchCheaterMsg(player_id, "cheater");
 				break;
 		}
 		return true;

@@ -17,3 +17,16 @@
 	font-size: smaller;
 	border-bottom: 2px solid black;
 }
+
+.chat-message.player-sus {
+	background-color: yellow !important;
+	background-image: none !important;
+
+}
+
+.chat-message .player-sus {
+	text-align: center;
+	border-bottom: 2px solid black;
+	text-decoration: underline;
+	font-size: larger;
+}

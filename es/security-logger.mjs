@@ -24,40 +24,54 @@ export class SecurityLogger {
 			used: null
 		};
 		this.logs.push(logObj );
-		console.log( "Logged", logObj);
+		// console.log( "Logged", logObj);
 		if (!this.logFileEnabled) return;
 		//TODO: actually write to file
 
 	}
 
 	verifyRoll(roll, timestamp, player_id, chatlog_id) {
-		const log =  this.logs.find(x=> x.player_id == player_id
-			&& timestamp - x.timestamp < 10000
-			&& SecurityLogger.rollsIdentical(x.roll, roll)
+		const recentLogs = this.getRecentRolls(player_id, timestamp);
+		const log =  recentLogs.find(x=>
+			SecurityLogger.rollsIdentical(x.roll, roll)
 		);
 		if (!log) {
-			console.warn("Roll not found in database");
+			// console.warn("Roll not found in database");
 			return "not found";
 		}
 		if (log.used && chatlog_id != log.used) {
-			return "already_done";
-		}
-		if (log.used && chatlog_id != log.used) {
-			console.warn("Roll was already used");
+			// console.warn("Roll was already used");
 			return "roll_used";
+		}
+		if (recentLogs.filter( x=> !x.used).length > 1)
+			return "sus";
+		if (log.used && chatlog_id != log.used) {
+			return "already_done";
 		}
 		log.used = chatlog_id;
 		return "verified";
 	}
 
 	static rollsIdentical(rollA, rollB) {
-		if (rollA.total != rollB.total)
+		try {
+			if (rollA.total != rollB.total)
+				return false;
+			return rollA.terms.every( (term, i) => {
+				if (!term?.results) return true;
+				return term.results.every( (result, j) => {
+					return result.result == rollB.terms[i].results[j].result;
+				})
+			});
+		} catch (e) {
+			console.error(e);
 			return false;
-		return rollA.terms.every( (term, i) => {
-			return term.results.every( (result, j) => {
-				return result.result == rollB.terms[i].results[j].result;
-			})
-		});
+		}
+	}
+
+	getRecentRolls(player_id, timestamp) {
+		return this.logs.filter( x=> x.player_id == player_id &&
+			timestamp - x.timestamp < 10000
+		);
 	}
 
 	getTimeStamp() {
