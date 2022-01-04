@@ -65,7 +65,6 @@ class TaragnorSecurity {
 				throw new Error("NAN ROLL");
 			}
 			awaited.resolve(roll);
-			Debug(roll);
 			this.awaitedRolls = this.awaitedRolls.filter (x => x != awaited);
 			return roll;
 		} catch (e) {
@@ -98,11 +97,11 @@ class TaragnorSecurity {
 		}
 		// console.log(`Recieved request to roll ${rollString}`);
 		const dice = new Roll(rollString);
-		await dice._oldeval({async:true});
-		// this.displayRoll(dice);
+		let roll = await dice.evaluate({async:true});
+		// this.displayRoll(roll); // NOTE: debug code
 		const gm_timestamp = this.logger.getTimeStamp();
-		this.rollSend(JSON.stringify(dice), gm_timestamp, player_id, timestamp);
-		await this.logger.logRoll(dice, player_id, gm_timestamp);
+		this.rollSend(JSON.stringify(roll), gm_timestamp, player_id, timestamp);
+		await this.logger.logRoll(roll, player_id, gm_timestamp);
 	}
 
 	static async cheatDetectRecieved({player_id, infraction}) {
@@ -163,14 +162,10 @@ class TaragnorSecurity {
 	}
 
 	static replaceRollProtoFunctions() {
-		Roll.prototype._oldeval = Roll.prototype.evaluate;
+		//Replaces the original evaluate function with new Roller
+		Roll.prototype._oldeval = Roll.prototype._evaluate;
 
-		Roll.prototype.evaluate = async function (options ={}) {
-			if ( this._evaluated ) {
-				throw new Error(`The ${this.constructor.name} has already been evaluated and is now immutable`);
-			}
-			if (options.async === false)
-				console.log("Mongrel tyring to use sync rolling");
+		Roll.prototype._evaluate = async function (options ={}) {
 			if (game.user.isGM) {
 				return this._oldeval(options);
 			} else {
@@ -180,13 +175,30 @@ class TaragnorSecurity {
 				return this;
 			}
 		}
+
+		// Roll.prototype._oldeval = Roll.prototype.evaluate;
+		// Roll.prototype.evaluate = async function (options ={}) {
+		// 	if ( this._evaluated ) {
+		// 		throw new Error(`The ${this.constructor.name} has already been evaluated and is now immutable`);
+		// 	}
+		// 	if (game.user.isGM) {
+		// 		return this._oldeval(options);
+		// 	} else {
+		// 		// console.warn("Running Secure Client Roll");
+
+		// 		const roll= await  TaragnorSecurity.secureRoll(this);
+		// 		TaragnorSecurity.replaceRoll(this, roll);
+		// 		return this;
+		// 	}
+		// }
 	}
+
+	
 
 	static verifyChatRoll(chatmessage, html,c,d) {
 		if (!game.user.isGM) return;
 		const timestamp = chatmessage.data.timestamp;
 		if (!this.startScan && timestamp > this.logger.startTime) {
-			// console.log("scan started");
 			this.startScan = true; //we've reached the new messages so we can start scanning
 		}
 		if (chatmessage.user.isGM)
@@ -205,7 +217,6 @@ class TaragnorSecurity {
 		switch(verified) {
 			case "already_done":
 				console.log("Already Done");
-				this.startTextAnimation(html);
 				break;
 			case "sus":
 				html.addClass("player-sus");
@@ -221,7 +232,6 @@ class TaragnorSecurity {
 			case "not found": case "roll_used": case "no-roll":
 				html.addClass("cheater-detected");
 				$(`<div class="cheater-detected"> Cheater detected </div>`).insertBefore(insert_target);
-				// console.log(`${chatmessage.user.name} is a dirty cheater: Chat Id:${chatmessage.id}`);
 				this.dispatchCheaterMsg(player_id, "cheater");
 				break;
 		}
@@ -229,6 +239,7 @@ class TaragnorSecurity {
 	}
 
 	static startTextAnimation (html) {
+		//NOTE PROB BEST TO REPLACE THIS WITH CUSTOM GM MESSAGE FOR VERIFICATION TO PREVENT FORGERY
 		const sleep = function(time)  {
 			return new Promise ( (resolve, reject) => {
 				setTimeout(resolve, time);

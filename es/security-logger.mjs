@@ -70,7 +70,7 @@ export class SecurityLogger {
 
 	getRecentRolls(player_id, timestamp) {
 		return this.logs.filter( x=> x.player_id == player_id &&
-			timestamp - x.timestamp < 10000
+			timestamp - x.timestamp < 50000
 		);
 	}
 
