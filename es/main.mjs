@@ -10,9 +10,9 @@ const logpath = "";
 
 class TaragnorSecurity {
 
-
 	static async SecurityInit() {
-		console.log("*** SECURITY ENABLED ***");
+		if (game.user.isGM)
+			console.log("*** SECURITY ENABLED ***");
 		game.socket.on("module.secure-foundry", this.socketHandler.bind(this));
 		this.logger = new SecurityLogger(logpath);
 		this.awaitedRolls = [];
@@ -23,10 +23,9 @@ class TaragnorSecurity {
 	}
 
 	static rollRequest(dice_expr = "1d6", timestamp, targetGMId) {
-		// console.log("Sending Roll request");
 		this.socketSend( {
 			command: ROLL_REQUEST,
-			gm_id: targetGMId, //shoudl be an id
+			gm_id: targetGMId,
 			rollString: dice_expr,
 			timestamp,
 			player_id: game.user.id
@@ -44,17 +43,12 @@ class TaragnorSecurity {
 	static rollSend(dice, GMtimestamp, player_id, player_timestamp) {
 		this.socketSend({
 			command:ROLL_MADE,
-			target: player_id, // should be player Id
+			target: player_id,
 			dice,
 			timestamp: GMtimestamp,
 			player_id,
 			player_timestamp: player_timestamp,
 		});
-	}
-
-	static async displayRoll(roll) {
-		console.log(`original terms: ${roll.terms.map( x=> x.results.map(y=> y.result))}`);
-		console.log(`original total: ${roll.total}`);
 	}
 
 	static async rollRecieve({dice: rollData, player_timestamp, player_id}) {
@@ -98,7 +92,7 @@ class TaragnorSecurity {
 		// console.log(`Recieved request to roll ${rollString}`);
 		const dice = new Roll(rollString);
 		let roll = await dice.evaluate({async:true});
-		// this.displayRoll(roll); // NOTE: debug code
+		// this._displayRoll(roll); // NOTE: debug code
 		const gm_timestamp = this.logger.getTimeStamp();
 		this.rollSend(JSON.stringify(roll), gm_timestamp, player_id, timestamp);
 		await this.logger.logRoll(roll, player_id, gm_timestamp);
@@ -176,24 +170,7 @@ class TaragnorSecurity {
 			}
 		}
 
-		// Roll.prototype._oldeval = Roll.prototype.evaluate;
-		// Roll.prototype.evaluate = async function (options ={}) {
-		// 	if ( this._evaluated ) {
-		// 		throw new Error(`The ${this.constructor.name} has already been evaluated and is now immutable`);
-		// 	}
-		// 	if (game.user.isGM) {
-		// 		return this._oldeval(options);
-		// 	} else {
-		// 		// console.warn("Running Secure Client Roll");
-
-		// 		const roll= await  TaragnorSecurity.secureRoll(this);
-		// 		TaragnorSecurity.replaceRoll(this, roll);
-		// 		return this;
-		// 	}
-		// }
 	}
-
-	
 
 	static verifyChatRoll(chatmessage, html,c,d) {
 		if (!game.user.isGM) return;
@@ -208,7 +185,7 @@ class TaragnorSecurity {
 		}
 		const player_id = chatmessage.user.id;
 		if (!chatmessage.roll) {
-			if (!html.hasClass("roll-verified")) //tries to resist forged roll-verified message on a non-roll message
+			if (!html.hasClass("roll-verified")) //tries to resist forged roll-verified header on a non-roll message
 				return true;
 		}
 		const logger_response = this.logger.verifyRoll(chatmessage.roll, timestamp, player_id, chatmessage.id);
@@ -255,14 +232,21 @@ class TaragnorSecurity {
 		}
 		setTimeout(changeText, 1000);
 	}
+
+	static async _displayRoll(roll) {
+		//DEBUG FUNCTION
+		console.log(`original terms: ${roll.terms.map( x=> x.results.map(y=> y.result))}`);
+		console.log(`original total: ${roll.total}`);
+	}
+
+
 }
 
 
 	Hooks.on("ready", TaragnorSecurity.SecurityInit.bind(TaragnorSecurity));
 
 
-
-	window.secureRoll = TaragnorSecurity.secureRoll.bind(TaragnorSecurity);
-	window.sec = TaragnorSecurity;
-
-	window.rollRequest = TaragnorSecurity.rollRequest.bind(TaragnorSecurity);
+//DEBUG CODE
+	// window.secureRoll = TaragnorSecurity.secureRoll.bind(TaragnorSecurity);
+	// window.sec = TaragnorSecurity;
+	// window.rollRequest = TaragnorSecurity.rollRequest.bind(TaragnorSecurity);
