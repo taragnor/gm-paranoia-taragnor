@@ -1,0 +1,17 @@
+<div class="roll-log">
+	{{#each logs as |entry|}}
+		<div class="log-entry">
+			<div class="timestamp"> {{entry.timestamp}} </div>
+			<div class="username"> {{entry.name}} </div>
+			<div class="total"> {{entry.total}} </div>
+			<div class="used"> {{entry.used}} </div>
+			<div class="terms">
+				{{#each entry.terms as |term|}}
+					<span class="term">
+						{{term}}
+					</div>
+				{{/each}}
+			</div>
+		</div>
+	{{/each}}
+</div>

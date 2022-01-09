@@ -78,6 +78,19 @@ export class SecurityLogger {
 		return Date.now();
 	}
 
+	async viewLog() {
+		const logs = this.logs.map( x=> {
+			return {
+				timestamp: new Date(x.timestamp).toLocaleTimeString(), //TODO: convert to real time
+				name: game.users.get(x.player_id).name,
+				total: x.roll.total,
+				used: x.used,
+				terms: x.roll.getResultsArray()
+			};
+		});
+		const html = await renderTemplate("modules/foundry-security/hbs/roll-log.hbs", { logs});
+	}
+
 } //end of class
 
 

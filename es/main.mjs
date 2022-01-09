@@ -170,6 +170,14 @@ class TaragnorSecurity {
 			}
 		}
 
+		Roll.prototype.getResultsArray = function() {
+			return this.terms
+				.filter( term => !term.isDeterministic)
+				.map ( term => {
+				return term.results.map( result=> result.result);
+			}).flat();
+		}
+
 	}
 
 	static verifyChatRoll(chatmessage, html,c,d) {
