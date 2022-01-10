@@ -8,6 +8,9 @@ const ROLL_REQUEST = "ROLL_REQUEST";
 const PUNISH_MONGREL= "CHEATER_DETECTED";
 const DIAGNOSTIC= "DIAGNOSTIC";
 const logpath = "";
+const REPORT_IN = "PLAYER_REPORT_IN";
+const REQUEST_REPORT = "GM_REQUEST_REPORT";
+const REPORT_ACK = "GM_ACKNOWLEDGE_REPORT";
 
 class TaragnorSecurity {
 
@@ -16,11 +19,11 @@ class TaragnorSecurity {
 			console.log("*** SECURITY ENABLED ***");
 		game.socket.on("module.secure-foundry", this.socketHandler.bind(this));
 		this.logger = new SecurityLogger(logpath);
-		this.awaitedRolls = [];
 		if (this.replaceRollProtoFunctions)
 			this.replaceRollProtoFunctions();
-		this.startScan = false;
+			this.initialReportIn();
 		Hooks.on("renderChatMessage", this.verifyChatRoll.bind(this));
+		Object.freeze(this);
 	}
 
 	static rollRequest(dice_expr = "1d6", timestamp, targetGMId) {
@@ -57,12 +60,12 @@ class TaragnorSecurity {
 	static async rollRecieve({dice: rollData, player_timestamp, player_id}) {
 		try {
 			const roll = Roll.fromJSON(rollData);
-			const awaited = this.awaitedRolls.find( x=> x.timestamp == player_timestamp && player_id == game.user.id);
+			const awaited = this.logger.awaitedRolls.find( x=> x.timestamp == player_timestamp && player_id == game.user.id);
 			if (Number.isNaN(roll.total) || roll.total == undefined) {
 				throw new Error("NAN ROLL");
 			}
 			awaited.resolve(roll);
-			this.awaitedRolls = this.awaitedRolls.filter (x => x != awaited);
+			this.logger.awaitedRolls = this.logger.awaitedRolls.filter (x => x != awaited);
 			return roll;
 		} catch (e) {
 			console.error(e);
@@ -169,6 +172,15 @@ class TaragnorSecurity {
 			case DIAGNOSTIC:
 				await this.recieveCheaterDiagnostic(data);
 				return true;
+			case REPORT_IN:
+				await this.reportInRecieved(data);
+				return true;
+			case REQUEST_REPORT:
+				await this.reportInRequested(data);
+				return true;
+			case REPORT_ACK:
+				await this.onAcknowledgePlayerReportIn(data);
+				return true;
 			default:
 				console.warn(`Unknown socket command: ${command}`);
 				console.log(data);
@@ -188,7 +200,7 @@ class TaragnorSecurity {
 		}
 		return await new Promise(( conf, rej) => {
 			const timestamp = this.logger.getTimeStamp();
-			this.awaitedRolls.push( {
+			this.logger.awaitedRolls.push( {
 				playerId: game.user.id,
 				expr: unevaluatedRoll.formula,
 				timestamp,
@@ -229,12 +241,12 @@ class TaragnorSecurity {
 	static verifyChatRoll(chatmessage, html,c,d) {
 		if (!game.user.isGM) return;
 		const timestamp = chatmessage.data.timestamp;
-		if (!this.startScan && timestamp > this.logger.startTime) {
-			this.startScan = true; //we've reached the new messages so we can start scanning
+		if (!this.logger.startScan && timestamp > this.logger.startTime) {
+			this.logger.startScan = true; //we've reached the new messages so we can start scanning
 		}
 		if (chatmessage.user.isGM)
 			return true;
-		if (!this.startScan)  {
+		if (!this.logger.startScan)  {
 			return true;
 		}
 		const player_id = chatmessage.user.id;
@@ -254,13 +266,28 @@ class TaragnorSecurity {
 				$(`<div class="player-sus"> ${chatmessage.user.name} is Sus </div>`).insertBefore(insert_target);
 				this.dispatchCheaterMsg(player_id, "sus");
 				break;
+			case "no-report":
+				html.addClass("player-sus");
+				$(`<div class="player-sus"> ${chatmessage.user.name} is Sus (Didn't report in) </div>`).insertBefore(insert_target);
+				this.dispatchCheaterMsg(player_id, "sus");
+				break;
 			case "verified":
 				const insert = $(`<div class="roll-verified"> Roll Verified </div>`);
 				this.startTextAnimation(insert);
 				html.addClass("roll-verified");
 				insert.insertBefore(insert_target);
 				break;
-			case "not found": case "roll_used": case "no-roll":
+			case "not found":
+				html.addClass("cheater-detected");
+				$(`<div class="cheater-detected"> Cheater detected (roll not found) </div>`).insertBefore(insert_target);
+				this.dispatchCheaterMsg(player_id, "cheater");
+				break;
+			case "roll_used_multiple_times":
+				html.addClass("cheater-detected");
+				$(`<div class="cheater-detected"> Cheater detected (roll used twice) </div>`).insertBefore(insert_target);
+				this.dispatchCheaterMsg(player_id, "cheater");
+				break;
+			case "no-roll": //currently not used
 				html.addClass("cheater-detected");
 				$(`<div class="cheater-detected"> Cheater detected </div>`).insertBefore(insert_target);
 				this.dispatchCheaterMsg(player_id, "cheater");
@@ -294,7 +321,76 @@ class TaragnorSecurity {
 	}
 
 
+	static async initialReportIn() {
+		const gm_id = game.users.find( x=> x.isGM).id;
+		if (game.user.isGM)
+			this.sendReportInRequests();
+		else {
+			if (gm_id)
+				this.reportIn(gm_id);
+		}
+	}
+
+	static async reportIn(gm_id) {
+		if (!this.logger.reported) {
+			this.socketSend( {
+				command: REPORT_IN,
+				target: gm_id,
+				player_id: game.user.id
+			});
+			setTimeout( this.reportIn.bind(this, gm_id), 5000);
+		}
+	}
+
+	static async sendReportInRequest(player_id) {
+		this.socketSend( {
+			command: REQUEST_REPORT,
+			target: player_id,
+			gm_id: game.user.id
+		});
+	}
+
+	static async sendReportAcknowledge(player_id) {
+		this.socketSend( {
+			command: REPORT_ACK,
+			target: player_id,
+			gm_id: game.user.id
+		});
+	}
+
+	static async sendReportInRequests() {
+		for (const user of game.users.filter( x=> !x.isGM))
+			await this.sendReportInRequest(user.id);
+	}
+
+	static async reportInRecieved({player_id}) {
+		console.log(`${game.users.get(player_id).name} has reported in`);
+		this.logger.playerSignIn(player_id);
+		await this.sendReportAcknowledge(player_id);
+	}
+
+	static async reportInRequested({gm_id}) {
+		this.logger.reported = false;
+		await this.reportIn(gm_id);
+	}
+
+	static async onAcknowledgePlayerReportIn(data) {
+		this.logger.reported = true;
+	}
 }
+
+Hooks.on("getSceneControlButtons", function(controls) {
+	let tileControls = controls.find(x => x.name === "token");
+	if (game.user.isGM) {
+		tileControls.tools.push({
+			icon: "fas fa-dice",
+			name: "DiceLog",
+			title: "DiceLog",
+			button: true,
+			onClick: () => TaragnorSecurity.logger.viewLog()
+		});
+	}
+});
 
 
 	Hooks.on("ready", TaragnorSecurity.SecurityInit.bind(TaragnorSecurity));
@@ -304,3 +400,5 @@ class TaragnorSecurity {
 	// window.secureRoll = TaragnorSecurity.secureRoll.bind(TaragnorSecurity);
 	// window.sec = TaragnorSecurity;
 	// window.rollRequest = TaragnorSecurity.rollRequest.bind(TaragnorSecurity);
+
+

@@ -1,18 +1,32 @@
 {{!-- TODO :Convert to table --}}
 <div class="roll-log">
-	{{#each logs as |entry|}}
-		<div class="log-entry">
-			<div class="timestamp"> {{entry.timestamp}} </div>
-			<div class="username"> {{entry.name}} </div>
-			<div class="total"> {{entry.total}} </div>
-			<div class="used"> {{entry.used}} </div>
-			<div class="terms">
-				{{#each entry.terms as |term|}}
-					<span class="term">
-						{{term}}
-					</div>
-				{{/each}}
-			</div>
-		</div>
-	{{/each}}
+<table class="roll-log">
+  <tr class="table-header">
+	 <th class="header"> Time </th>
+	 <th class="header"> User </th>
+	 <th class="header"> Status </th>
+	 <th class="header"> Formula </th>
+	 <th class="header"> Roll Total </th>
+	 <th class="header"> Roll used in </th>
+	 <th class="header"> Terms </th>
+  </tr>
+
+  {{#each logs as |entry|}}
+	 <tr class="log-entry">
+		<td class="timestamp"> {{entry.timestamp}} </td>
+		<td class="username"> {{entry.name}} </td>
+		<td class="username"> {{entry.status}} </td>
+		<td class="formula"> {{entry.formula}} </td>
+		<td class="total"> {{entry.total}} </td>
+		<td class="used"> {{entry.used}} </td>
+		<td class="terms">
+		  {{#each entry.terms as |term|}}
+			 <span class="term">
+				{{term}}
+			 </span>
+		  {{/each}}
+		</td>
+	 </tr>
+  {{/each}}
+</table>
 </div>

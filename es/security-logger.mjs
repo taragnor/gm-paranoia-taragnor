@@ -1,7 +1,11 @@
 export class SecurityLogger {
 	constructor (logPath) {
 		this.startTime = Date.now();
+		this.players = [];
 		this.logs = [];
+		this.startScan = false;
+		this.reported= false;
+		this.awaitedRolls = [];
 		if (!logPath) {
 			this.logFileEnabled = false;
 			return;
@@ -16,39 +20,55 @@ export class SecurityLogger {
 
 	}
 
+	async playerSignIn(player_id) {
+		this.players.push(player_id);
+	}
+
 	async logRoll(roll, player_id, gm_timestamp) {
 		const logObj = {
 			roll,
 			player_id,
 			timestamp:gm_timestamp,
-			used: null
+			used: null,
+			status: "unused"
 		};
 		this.logs.push(logObj );
-		// console.log( "Logged", logObj);
 		if (!this.logFileEnabled) return;
-		//TODO: actually write to file
+		//TODO: actually make a persistent log file
 
 	}
 
+
 	verifyRoll(roll, timestamp, player_id, chatlog_id) {
 		const recentLogs = this.getRecentRolls(player_id, timestamp);
+		const already_done = recentLogs.find( x=> x.used == chatlog_id && SecurityLogger.rollsIdentical(x.roll, roll));
+		if (already_done)
+			return already_done.status;
 		const log =  recentLogs.find(x=>
+			!x.used && SecurityLogger.rollsIdentical(x.roll, roll)
+		);
+		const re_use =  recentLogs.find(x=>
 			SecurityLogger.rollsIdentical(x.roll, roll)
 		);
+		if (!log && re_use?.used && chatlog_id != re_use.used) {
+			// console.warn("Roll was already used");
+			re_use.status = "roll_used_multiple_times";
+			return "roll_used_multiple_times";
+		}
 		if (!log) {
 			// console.warn("Roll not found in database");
 			return "not found";
 		}
-		if (log.used && chatlog_id != log.used) {
-			// console.warn("Roll was already used");
-			return "roll_used";
-		}
+		if (!this.players.find( x=> x == player_id))
+			return "no-report";
 		if (recentLogs.filter( x=> !x.used).length > 1)
 			return "sus";
-		if (log.used && chatlog_id != log.used) {
-			return "already_done";
-		}
+		// if (log.used && chatlog_id != log.used) {
+		// 	return "already_done";
+		// }
 		log.used = chatlog_id;
+		log.status = "verified";
+		// console.log("Verified");
 		return "verified";
 	}
 
@@ -79,6 +99,11 @@ export class SecurityLogger {
 	}
 
 	async viewLog() {
+		this.logs.sort( (a,b) => {
+			if (a.timestamp > b.timestamp) return -1;
+			if (a.timestamp < b.timestamp) return 1;
+			return 0;
+		});
 		const logs = this.logs.map( x=> {
 			const timestamp = new Date(x.timestamp).toLocaleTimeString();
 			return {
@@ -86,11 +111,31 @@ export class SecurityLogger {
 				name: game.users.get(x.player_id).name,
 				total: x.roll.total,
 				used: x.used,
-				terms: x.roll.getResultsArray()
+				terms: x.roll.getResultsArray(),
+				formula: x.roll.formula,
+				status: x.status
 			};
 		});
-		const html = await renderTemplate("modules/foundry-security/hbs/roll-log.hbs", { logs});
-		return html;
+		const html = await renderTemplate("modules/secure-foundry/hbs/roll-log.hbs", { logs});
+		return await this.logDialog(html);
+	}
+
+	logDialog(html) {
+		return new Promise( (conf, rej) => {
+			const options = { width: 700 };
+			const dialog = new Dialog ( {
+				title : "Roll Log",
+				content :html,
+				buttons : {
+					one: {
+						icon: `<i class="fas fa-check"></i>`,
+						callback: () => conf(null),
+					}
+				},
+				close: () => conf(null),
+			}, options);
+			dialog.render(true);
+		});
 	}
 
 } //end of class

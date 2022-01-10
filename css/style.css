@@ -30,3 +30,21 @@
 	text-decoration: underline;
 	font-size: larger;
 }
+
+.roll-log {
+	border: 1px solid black;
+	text-align: center;
+	margin-left:auto;
+	margin-right:auto;
+}
+
+td.roll-log {
+	border: 1px solid black;
+
+}
+
+
+div.roll-log {
+	width: 680px;
+	height: 700px;
+}
