@@ -302,5 +302,5 @@ class TaragnorSecurity {
 
 //DEBUG CODE
 	// window.secureRoll = TaragnorSecurity.secureRoll.bind(TaragnorSecurity);
-	window.sec = TaragnorSecurity;
+	// window.sec = TaragnorSecurity;
 	// window.rollRequest = TaragnorSecurity.rollRequest.bind(TaragnorSecurity);
