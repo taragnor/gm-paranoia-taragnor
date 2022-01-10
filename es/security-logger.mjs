@@ -80,8 +80,9 @@ export class SecurityLogger {
 
 	async viewLog() {
 		const logs = this.logs.map( x=> {
+			const timestamp = new Date(x.timestamp).toLocaleTimeString();
 			return {
-				timestamp: new Date(x.timestamp).toLocaleTimeString(), //TODO: convert to real time
+				timestamp,
 				name: game.users.get(x.player_id).name,
 				total: x.roll.total,
 				used: x.used,
@@ -89,6 +90,7 @@ export class SecurityLogger {
 			};
 		});
 		const html = await renderTemplate("modules/foundry-security/hbs/roll-log.hbs", { logs});
+		return html;
 	}
 
 } //end of class

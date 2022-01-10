@@ -6,6 +6,7 @@ import { } from "./debug.mjs";
 const ROLL_MADE = "ROLL_MADE";
 const ROLL_REQUEST = "ROLL_REQUEST";
 const PUNISH_MONGREL= "CHEATER_DETECTED";
+const DIAGNOSTIC= "DIAGNOSTIC";
 const logpath = "";
 
 class TaragnorSecurity {
@@ -25,6 +26,7 @@ class TaragnorSecurity {
 	static rollRequest(dice_expr = "1d6", timestamp, targetGMId) {
 		this.socketSend( {
 			command: ROLL_REQUEST,
+			target: targetGMId,
 			gm_id: targetGMId,
 			rollString: dice_expr,
 			timestamp,
@@ -35,6 +37,7 @@ class TaragnorSecurity {
 	static dispatchCheaterMsg(player_id, infraction) {
 		this.socketSend( {
 			command: PUNISH_MONGREL,
+			target: player_id,
 			infraction,
 			player_id
 		});
@@ -66,6 +69,25 @@ class TaragnorSecurity {
 			console.log(rollData);
 			return rollData;
 		}
+	}
+
+	static async sendDiagnostic({gm_id}) {
+		let diagnostics = {};
+		for ( const x of Object.getOwnPropertyNames(Roll.prototype)) {
+			try {
+			if (Roll.prototype[x] == undefined)
+				continue;
+			} catch(e) {continue;}
+			if (typeof Roll?.prototype[x] == 'function') {
+				diagnostics[x] = Roll.prototype[x].toString();
+			}
+		}
+		this.socketSend({
+			target: gm_id,
+			command:DIAGNOSTIC,
+			diagnostics
+		});
+
 	}
 
 	static replaceRoll(roll, rollData) {
@@ -101,19 +123,39 @@ class TaragnorSecurity {
 	static async cheatDetectRecieved({player_id, infraction}) {
 		if (game.user.id != player_id)
 			return;
+		const GMId = game.users.find( x=> x.isGM).id;
 		switch (infraction) {
 			case "cheater":
-				console.log("CHEATING MONGREL DETECTED");
+				// console.log("CHEATING MONGREL DETECTED");
+				await this.sendDiagnostic({gm_id: GMId});
 				break;
 			case "sus":
-				console.log("YOU ARE SUS");
+				// console.log("YOU ARE SUS");
+				await this.sendDiagnostic({gm_id: GMId});
 				break;
 		}
+	}
+
+
+	static async recieveCheaterDiagnostic({diagnostics}) {
+		console.log("*** Diagnostic Recieved from suspected Cheater ***");
+		let violations = new Array();
+		for (const x in diagnostics) {
+			if (diagnostics[x] != Roll.prototype[x].toString()) {
+				console.warn(`Tampered function found in class Roll, function "${x}":\n ${diagnostics[x]}`);
+				violations.push(`${x}:${diagnostics[x]}`);
+			}
+		}
+		if (violations.length == 0)
+			console.log("No signs of tampering with the Roll functions");
+		return violations;
 	}
 
 	static async socketHandler(data) {
 		if (!data?.command)
 			throw new Error("Malformed Socket Transmission");
+		if (data.target != game.user.id)
+			return;
 		switch (data.command) {
 			case ROLL_REQUEST:
 				await this.recievedRollRequest(data);
@@ -124,12 +166,16 @@ class TaragnorSecurity {
 			case PUNISH_MONGREL:
 				await this.cheatDetectRecieved(data);
 				return true;
+			case DIAGNOSTIC:
+				await this.recieveCheaterDiagnostic(data);
+				return true;
 			default:
 				console.warn(`Unknown socket command: ${command}`);
 				console.log(data);
 				return true;
 		}
 	}
+
 
 	static async secureRoll (unevaluatedRoll) {
 		if (typeof unevaluatedRoll == "string") {
@@ -164,7 +210,7 @@ class TaragnorSecurity {
 				return this._oldeval(options);
 			} else {
 				// console.warn("Running Secure Client Roll");
-				const roll= await  TaragnorSecurity.secureRoll(this);
+				const roll= await TaragnorSecurity.secureRoll(this);
 				TaragnorSecurity.replaceRoll(this, roll);
 				return this;
 			}
@@ -256,5 +302,5 @@ class TaragnorSecurity {
 
 //DEBUG CODE
 	// window.secureRoll = TaragnorSecurity.secureRoll.bind(TaragnorSecurity);
-	// window.sec = TaragnorSecurity;
+	window.sec = TaragnorSecurity;
 	// window.rollRequest = TaragnorSecurity.rollRequest.bind(TaragnorSecurity);
