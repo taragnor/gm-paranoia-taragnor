@@ -1,4 +1,4 @@
-# Security Module for foundry
+# Security Module for Foundry VTT
 *Author:* Taragnor
 
 Analyzes rolls to make sure players aren't cheating. All rolls are handled through the DM machine and recieve a "Roll Verified" message at the top of any messages that have been analyzed. Cheating messages will be highlighted in red (from DM perspective only) and suspicious messages will be highlighted in yellow. 
