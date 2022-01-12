@@ -139,12 +139,11 @@ class TaragnorSecurity {
 		}
 	}
 
-
 	static async recieveCheaterDiagnostic({diagnostics}) {
 		console.log("*** Diagnostic Recieved from suspected Cheater ***");
 		let violations = new Array();
 		for (const x in diagnostics) {
-			if (diagnostics[x] != Roll.prototype[x].toString()) {
+			if (diagnostics[x] != Roll.prototype[x]?.toString()) {
 				console.warn(`Tampered function found in class Roll, function "${x}":\n ${diagnostics[x]}`);
 				violations.push(`${x}:${diagnostics[x]}`);
 			}
