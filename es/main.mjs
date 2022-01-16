@@ -119,7 +119,6 @@ class TaragnorSecurity {
 		const dice = new Roll(rollString);
 		let roll = await dice.evaluate({async:true});
 		const log_id = this.logger.getNextId();
-		console.log(log_id);
 		// this._displayRoll(roll); // NOTE: debug code
 		const gm_timestamp = this.logger.getTimeStamp();
 		dice.options._securityTS = gm_timestamp;

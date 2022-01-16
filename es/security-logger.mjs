@@ -1,4 +1,7 @@
 export class SecurityLogger {
+	static staleCounter = 5000;
+	static recentCounter = 50000;
+
 	constructor (logPath) {
 		this.startTime = Date.now();
 		this.players = [];
@@ -54,11 +57,24 @@ export class SecurityLogger {
 		return null;
 	}
 
+ static checkStaleRoll(roll, timestamp) {
+	 try {
+		 const span = roll.options._securityTS - timestamp;
+		 if (Number.isNaN(span))
+			 throw new Error("NaN value");
+		 return span > SecurityLogger.staleCounter ;
+	 }catch (e) {
+		 console.error(e);
+	 }
+	 return false;
+ }
+
+
 	verifyRoll(roll, timestamp, player_id, chatlog_id) {
 		const exists = this.checkBasicFind(roll, timestamp);
 		const recentLogs = this.logs.filter( x=>
 			x.player_id == player_id
-			&& timestamp - x.timestamp < 500000
+			&& timestamp - x.timestamp < SecurityLogger.recentCounter
 		);
 		// const recentLogs = this.getRecentRolls(player_id, timestamp);
 		// const already_done = recentLogs.find( x=> x.used == chatlog_id && SecurityLogger.rollsIdentical(x.roll, roll));
@@ -81,7 +97,7 @@ export class SecurityLogger {
 			exists.used = chatlog_id;
 			return exists.status;
 		}
-		if (exists._securityTS - timestamp > 60000) {
+		if (SecurityLogger.checkStaleRoll(exists.roll, timestamp)) {
 			exists.status = "stale";
 			return exists.status;
 		}
@@ -117,23 +133,24 @@ export class SecurityLogger {
 	}
 
 	async viewLog() {
-		this.logs.sort( (a,b) => {
-			if (a.timestamp > b.timestamp) return -1;
-			if (a.timestamp < b.timestamp) return 1;
-			return 0;
-		});
-		const logs = this.logs.map( x=> {
-			const timestamp = new Date(x.timestamp).toLocaleTimeString();
-			return {
-				timestamp,
-				name: game.users.get(x.player_id).name,
-				total: x.roll.total,
-				used: x.used,
-				terms: x.roll.getResultsArray(),
-				formula: x.roll.formula,
-				status: x.status
-			};
-		});
+		const logs =[...this.logs]
+			.sort( (a,b) => {
+				if (a.timestamp > b.timestamp) return -1;
+				if (a.timestamp < b.timestamp) return 1;
+				return 0;
+			})
+			.map( x=> {
+				const timestamp = new Date(x.timestamp).toLocaleTimeString();
+				return {
+					timestamp,
+					name: game.users.get(x.player_id).name,
+					total: x.roll.total,
+					used: x.used,
+					terms: x.roll.getResultsArray(),
+					formula: x.roll.formula,
+					status: x.status
+				};
+			});
 		const html = await renderTemplate("modules/secure-foundry/hbs/roll-log.hbs", { logs});
 		return await this.logDialog(html);
 	}
