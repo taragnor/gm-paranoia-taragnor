@@ -267,48 +267,56 @@ class TaragnorSecurity {
 				console.log("Already Done");
 				break;
 			case "unused_rolls":
-				html.addClass("player-sus");
-				$(`<div class="player-sus"> ${chatmessage.user.name} is Sus </div>`).insertBefore(insert_target);
-				this.dispatchCheaterMsg(player_id, "sus");
+				this.susMessage(html, "Has Unused rolls", chatmessage);
 				break;
 			case "no-report":
-				html.addClass("player-sus");
-				$(`<div class="player-sus"> ${chatmessage.user.name} is Sus (Didn't report in) </div>`).insertBefore(insert_target);
-				this.dispatchCheaterMsg(player_id, "sus");
+				this.susMessage(html, "Never reported in", chatmessage);
 				break;
 			case "stale":
-				html.addClass("player-sus");
-				$(`<div class="player-sus"> ${chatmessage.user.name} is Sus (Stale Roll) </div>`).insertBefore(insert_target);
-				this.dispatchCheaterMsg(player_id, "sus");
+				this.susMessage(html, "Roll used is stale", chatmessage);
 				break;
 			case "verified":
-				const insert = $(`<div class="roll-verified"> Roll Verified </div>`);
-				this.startTextAnimation(insert);
-				html.addClass("roll-verified");
-				insert.insertBefore(insert_target);
+				this.verifyMessage(html, "verified", chatmessage);
 				break;
-			case "not found":
-				html.addClass("cheater-detected");
-				$(`<div class="cheater-detected"> Cheater detected (roll not found) </div>`).insertBefore(insert_target);
-				this.dispatchCheaterMsg(player_id, "cheater");
+			case "roll_modified": 
+				this.cheaterMessage(html, "Roll Modification detected", chatmessage);
+				break;
+			case "not_found":
+				this.susMessage(html, "Roll not found", chatmessage);
 				break;
 			case "roll_used_multiple_times":
-				html.addClass("cheater-detected");
-				$(`<div class="cheater-detected"> Cheater detected (roll used twice) </div>`).insertBefore(insert_target);
-				this.dispatchCheaterMsg(player_id, "cheater");
+				this.susMessage(html, "Roll used twice", chatmessage);
 				break;
 			case "no-roll": //currently not used
-				html.addClass("cheater-detected");
-				$(`<div class="cheater-detected"> Cheater detected </div>`).insertBefore(insert_target);
-				this.dispatchCheaterMsg(player_id, "cheater");
+				this.cheaterMessage(html, "No Roll", chatmessage);
 				break;
 			default:
-				html.addClass("player-sus");
-				$(`<div class="cheater-detected"> Unusual Error Message ${verified} </div>`).insertBefore(insert_target);
-				this.dispatchCheaterMsg(player_id, "sus");
+				this.susMessage(html, `unusual error ${verified}`, chatmessage);
 				break;
 		}
 		return true;
+	}
+
+	static susMessage(html, reason, chatmessage) {
+		const insert_target = html.find(".message-header");
+		html.addClass("player-sus");
+		$(`<div class="player-sus"> ${chatmessage.user.name} is Sus (${reason}) </div>`).insertBefore(insert_target);
+		this.dispatchCheaterMsg(chatmessage.user.id, "sus");
+	}
+
+	static cheaterMessage(html, reason, chatmessage) {
+		const insert_target = html.find(".message-header");
+		html.addClass("cheater-detected");
+		$(`<div class="cheater-detected"> ${chatmessage.user.name} is a cheater (${reason}) </div>`).insertBefore(insert_target);
+		this.dispatchCheaterMsg(chatmessage.user.id, "cheater");
+	}
+
+	static verifyMessage(html, _reason, _chatmessage) {
+		const insert_target = html.find(".message-header");
+		const insert = $(`<div class="roll-verified"> Roll Verified </div>`);
+		this.startTextAnimation(insert);
+		html.addClass("roll-verified");
+		insert.insertBefore(insert_target);
 	}
 
 	static startTextAnimation (html) {
@@ -318,7 +326,7 @@ class TaragnorSecurity {
 				setTimeout(resolve, time);
 			});
 		}
-		const changeText=  async () =>  {
+		const changeText = async () =>  {
 			await sleep(5000 + Math.random() * 10000);
 			const original = html.text();
 			html.text("No Cheating");

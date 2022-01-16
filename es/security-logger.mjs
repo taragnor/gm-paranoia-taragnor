@@ -65,24 +65,28 @@ export class SecurityLogger {
 		if (!this.players.find( x=> x == player_id))
 			return "no-report";
 		if (!exists)
-			return "not found";
+			return "not_found";
+		if (!SecurityLogger.rollsIdentical(exists.roll, roll)){
+			exists.status = "roll_modified";
+			return exists.status;
+		}
 		if (exists.used == chatlog_id)
 			return exists.status;
 		if (exists.used)  {
 			exists.status = "roll_used_multiple_times";
-			return "roll_used_multiple_times";
+			return exists.status;
 		}
 		if (recentLogs.filter( x=> !x.used).length > 1) {
 			exists.status = "unused_rolls";
-			return "unused_rolls";
+			return exists.status;
 		}
 		if (exists._securityTS - timestamp > 60000) {
 			exists.status = "stale";
-			return "stale";
+			return exists.status;
 		}
 		exists.used = chatlog_id;
 		exists.status = "verified";
-		return "verified";
+		return exists.status;
 
 		// const log =  recentLogs.find(x=>
 		// 	!x.used && SecurityLogger.rollsIdentical(x.roll, roll)
