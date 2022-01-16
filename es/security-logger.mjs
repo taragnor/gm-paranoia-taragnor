@@ -45,7 +45,7 @@ export class SecurityLogger {
 	checkBasicFind(roll) {
 		try {
 			const index = roll.options._securityId;
-			const log = this.logs[index]
+			const log = this.logs[index];
 			if (log.timestamp == roll.options._securityTS)
 				return log;
 		} catch (e) {
@@ -78,6 +78,7 @@ export class SecurityLogger {
 		}
 		if (recentLogs.filter( x=> !x.used).length > 1) {
 			exists.status = "unused_rolls";
+			exists.used = chatlog_id;
 			return exists.status;
 		}
 		if (exists._securityTS - timestamp > 60000) {
@@ -87,30 +88,6 @@ export class SecurityLogger {
 		exists.used = chatlog_id;
 		exists.status = "verified";
 		return exists.status;
-
-		// const log =  recentLogs.find(x=>
-		// 	!x.used && SecurityLogger.rollsIdentical(x.roll, roll)
-		// );
-		// const re_use =  recentLogs.find(x=>
-		// 	SecurityLogger.rollsIdentical(x.roll, roll)
-		// );
-		// if (!log && re_use?.used && chatlog_id != re_use.used) {
-		// 	// console.warn("Roll was already used");
-		// 	re_use.status = "roll_used_multiple_times";
-		// 	return "roll_used_multiple_times";
-		// }
-		// if (!log) {
-		// 	// console.warn("Roll not found in database");
-		// 	return "not found";
-		// }
-		// if (!this.players.find( x=> x == player_id))
-		// 	return "no-report";
-		// if (recentLogs.filter( x=> !x.used).length > 1)
-		// 	return "sus";
-		// log.used = chatlog_id;
-		// log.status = "verified";
-		// // console.log("Verified");
-		// return "verified";
 	}
 
 	static rollsIdentical(rollA, rollB) {

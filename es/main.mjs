@@ -118,9 +118,10 @@ class TaragnorSecurity {
 		// console.log(`Recieved request to roll ${rollString}`);
 		const dice = new Roll(rollString);
 		let roll = await dice.evaluate({async:true});
+		const log_id = this.logger.getNextId();
+		console.log(log_id);
 		// this._displayRoll(roll); // NOTE: debug code
 		const gm_timestamp = this.logger.getTimeStamp();
-		const log_id = this.logger.getNextId();
 		dice.options._securityTS = gm_timestamp;
 		dice.options._securityId = log_id;
 		this.rollSend(JSON.stringify(roll), gm_timestamp, player_id, timestamp, log_id);
@@ -278,7 +279,7 @@ class TaragnorSecurity {
 			case "verified":
 				this.verifyMessage(html, "verified", chatmessage);
 				break;
-			case "roll_modified": 
+			case "roll_modified":
 				this.cheaterMessage(html, "Roll Modification detected", chatmessage);
 				break;
 			case "not_found":
