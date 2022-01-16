@@ -226,7 +226,6 @@ class TaragnorSecurity {
 			} else {
 				// console.warn("Running Secure Client Roll");
 				const {roll, gm_timestamp, log_id} = await TaragnorSecurity.secureRoll(this);
-				console.log(roll);
 				TaragnorSecurity.replaceRoll(this, roll);
 				this.options._securityTS = gm_timestamp;
 				this.options._securityId = log_id;
