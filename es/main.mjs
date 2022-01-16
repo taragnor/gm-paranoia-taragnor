@@ -46,7 +46,7 @@ class TaragnorSecurity {
 		});
 	}
 
-	static rollSend(dice, GMtimestamp, player_id, player_timestamp) {
+	static rollSend(dice, GMtimestamp, player_id, player_timestamp, log_id) {
 		this.socketSend({
 			command:ROLL_MADE,
 			target: player_id,
@@ -54,19 +54,20 @@ class TaragnorSecurity {
 			timestamp: GMtimestamp,
 			player_id,
 			player_timestamp: player_timestamp,
+			log_id
 		});
 	}
 
-	static async rollRecieve({dice: rollData, player_timestamp, player_id}) {
+	static async rollRecieve({dice: rollData, player_timestamp, player_id, timestamp: gm_timestamp, log_id}) {
 		try {
 			const roll = Roll.fromJSON(rollData);
 			const awaited = this.logger.awaitedRolls.find( x=> x.timestamp == player_timestamp && player_id == game.user.id);
 			if (Number.isNaN(roll.total) || roll.total == undefined) {
 				throw new Error("NAN ROLL");
 			}
-			awaited.resolve(roll);
+			awaited.resolve({roll, gm_timestamp, log_id});
 			this.logger.awaitedRolls = this.logger.awaitedRolls.filter (x => x != awaited);
-			return roll;
+			return {roll, gm_timestamp, log_id};
 		} catch (e) {
 			console.error(e);
 			console.log(rollData);
@@ -119,7 +120,10 @@ class TaragnorSecurity {
 		let roll = await dice.evaluate({async:true});
 		// this._displayRoll(roll); // NOTE: debug code
 		const gm_timestamp = this.logger.getTimeStamp();
-		this.rollSend(JSON.stringify(roll), gm_timestamp, player_id, timestamp);
+		const log_id = this.logger.getNextId();
+		dice.options._securityTS = gm_timestamp;
+		dice.options._securityId = log_id;
+		this.rollSend(JSON.stringify(roll), gm_timestamp, player_id, timestamp, log_id);
 		await this.logger.logRoll(roll, player_id, gm_timestamp);
 	}
 
@@ -221,8 +225,11 @@ class TaragnorSecurity {
 				return this._oldeval(options);
 			} else {
 				// console.warn("Running Secure Client Roll");
-				const roll= await TaragnorSecurity.secureRoll(this);
+				const {roll, gm_timestamp, log_id} = await TaragnorSecurity.secureRoll(this);
+				console.log(roll);
 				TaragnorSecurity.replaceRoll(this, roll);
+				this.options._securityTS = gm_timestamp;
+				this.options._securityId = log_id;
 				return this;
 			}
 		}
@@ -260,7 +267,7 @@ class TaragnorSecurity {
 			case "already_done":
 				console.log("Already Done");
 				break;
-			case "sus":
+			case "unused_rolls":
 				html.addClass("player-sus");
 				$(`<div class="player-sus"> ${chatmessage.user.name} is Sus </div>`).insertBefore(insert_target);
 				this.dispatchCheaterMsg(player_id, "sus");
@@ -268,6 +275,11 @@ class TaragnorSecurity {
 			case "no-report":
 				html.addClass("player-sus");
 				$(`<div class="player-sus"> ${chatmessage.user.name} is Sus (Didn't report in) </div>`).insertBefore(insert_target);
+				this.dispatchCheaterMsg(player_id, "sus");
+				break;
+			case "stale":
+				html.addClass("player-sus");
+				$(`<div class="player-sus"> ${chatmessage.user.name} is Sus (Stale Roll) </div>`).insertBefore(insert_target);
 				this.dispatchCheaterMsg(player_id, "sus");
 				break;
 			case "verified":
@@ -290,6 +302,11 @@ class TaragnorSecurity {
 				html.addClass("cheater-detected");
 				$(`<div class="cheater-detected"> Cheater detected </div>`).insertBefore(insert_target);
 				this.dispatchCheaterMsg(player_id, "cheater");
+				break;
+			default:
+				html.addClass("player-sus");
+				$(`<div class="cheater-detected"> Unusual Error Message ${verified} </div>`).insertBefore(insert_target);
+				this.dispatchCheaterMsg(player_id, "sus");
 				break;
 		}
 		return true;
@@ -397,7 +414,7 @@ Hooks.on("getSceneControlButtons", function(controls) {
 
 //DEBUG CODE
 	// window.secureRoll = TaragnorSecurity.secureRoll.bind(TaragnorSecurity);
-	// window.sec = TaragnorSecurity;
+	window.sec = TaragnorSecurity;
 	// window.rollRequest = TaragnorSecurity.rollRequest.bind(TaragnorSecurity);
 
 

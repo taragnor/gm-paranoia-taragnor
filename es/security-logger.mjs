@@ -38,38 +38,75 @@ export class SecurityLogger {
 
 	}
 
+	getNextId() {
+		return this.logs.length;
+	}
+
+	checkBasicFind(roll) {
+		try {
+			const index = roll.options._securityId;
+			const log = this.logs[index]
+			if (log.timestamp == roll.options._securityTS)
+				return log;
+		} catch (e) {
+			console.warn(e);
+		}
+		return null;
+	}
 
 	verifyRoll(roll, timestamp, player_id, chatlog_id) {
-		const recentLogs = this.getRecentRolls(player_id, timestamp);
-		const already_done = recentLogs.find( x=> x.used == chatlog_id && SecurityLogger.rollsIdentical(x.roll, roll));
-		if (already_done)
-			return already_done.status;
-		const log =  recentLogs.find(x=>
-			!x.used && SecurityLogger.rollsIdentical(x.roll, roll)
+		const exists = this.checkBasicFind(roll, timestamp);
+		const recentLogs = this.logs.filter( x=>
+			x.player_id == player_id
+			&& timestamp - x.timestamp < 500000
 		);
-		const re_use =  recentLogs.find(x=>
-			SecurityLogger.rollsIdentical(x.roll, roll)
-		);
-		if (!log && re_use?.used && chatlog_id != re_use.used) {
-			// console.warn("Roll was already used");
-			re_use.status = "roll_used_multiple_times";
-			return "roll_used_multiple_times";
-		}
-		if (!log) {
-			// console.warn("Roll not found in database");
-			return "not found";
-		}
+		// const recentLogs = this.getRecentRolls(player_id, timestamp);
+		// const already_done = recentLogs.find( x=> x.used == chatlog_id && SecurityLogger.rollsIdentical(x.roll, roll));
 		if (!this.players.find( x=> x == player_id))
 			return "no-report";
-		if (recentLogs.filter( x=> !x.used).length > 1)
-			return "sus";
-		// if (log.used && chatlog_id != log.used) {
-		// 	return "already_done";
-		// }
-		log.used = chatlog_id;
-		log.status = "verified";
-		// console.log("Verified");
+		if (!exists)
+			return "not found";
+		if (exists.used == chatlog_id)
+			return exists.status;
+		if (exists.used)  {
+			exists.status = "roll_used_multiple_times";
+			return "roll_used_multiple_times";
+		}
+		if (recentLogs.filter( x=> !x.used).length > 1) {
+			exists.status = "unused_rolls";
+			return "unused_rolls";
+		}
+		if (exists._securityTS - timestamp > 60000) {
+			exists.status = "stale";
+			return "stale";
+		}
+		exists.used = chatlog_id;
+		exists.status = "verified";
 		return "verified";
+
+		// const log =  recentLogs.find(x=>
+		// 	!x.used && SecurityLogger.rollsIdentical(x.roll, roll)
+		// );
+		// const re_use =  recentLogs.find(x=>
+		// 	SecurityLogger.rollsIdentical(x.roll, roll)
+		// );
+		// if (!log && re_use?.used && chatlog_id != re_use.used) {
+		// 	// console.warn("Roll was already used");
+		// 	re_use.status = "roll_used_multiple_times";
+		// 	return "roll_used_multiple_times";
+		// }
+		// if (!log) {
+		// 	// console.warn("Roll not found in database");
+		// 	return "not found";
+		// }
+		// if (!this.players.find( x=> x == player_id))
+		// 	return "no-report";
+		// if (recentLogs.filter( x=> !x.used).length > 1)
+		// 	return "sus";
+		// log.used = chatlog_id;
+		// log.status = "verified";
+		// // console.log("Verified");
+		// return "verified";
 	}
 
 	static rollsIdentical(rollA, rollB) {
