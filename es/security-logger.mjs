@@ -1,6 +1,6 @@
 export class SecurityLogger {
-	static staleCounter = 5000;
-	static recentCounter = 50000;
+	static staleCounter = 70000;
+	static recentCounter = 8000000;
 
 	constructor (logPath) {
 		this.startTime = Date.now();
@@ -57,17 +57,20 @@ export class SecurityLogger {
 		return null;
 	}
 
- static checkStaleRoll(roll, timestamp) {
-	 try {
-		 const span = roll.options._securityTS - timestamp;
-		 if (Number.isNaN(span))
-			 throw new Error("NaN value");
-		 return span > SecurityLogger.staleCounter ;
-	 }catch (e) {
-		 console.error(e);
-	 }
-	 return false;
- }
+	static checkStaleRoll(roll, timestamp) {
+		try {
+			const span = timestamp - roll.options._securityTS;
+			if (Number.isNaN(span))
+				throw new Error("NaN value");
+			const stale  = span > SecurityLogger.staleCounter; 
+			if (stale)
+				console.log(`Stale roll count: ${span}`);
+			return stale;
+		}catch (e) {
+			console.error(e);
+		}
+		return false;
+	}
 
 
 	verifyRoll(roll, timestamp, player_id, chatlog_id) {
@@ -99,6 +102,7 @@ export class SecurityLogger {
 		}
 		if (SecurityLogger.checkStaleRoll(exists.roll, timestamp)) {
 			exists.status = "stale";
+			exists.used = chatlog_id;
 			return exists.status;
 		}
 		exists.used = chatlog_id;
