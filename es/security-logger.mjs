@@ -157,12 +157,12 @@ export class SecurityLogger {
 					status: x.status
 				};
 			});
-		const html = await renderTemplate("modules/secure-foundry/hbs/roll-log.hbs", { logs});
+		const html = await renderTemplate("modules/gm-paranoia-taragnor/hbs/roll-log.hbs", { logs});
 		return await this.logDialog(html);
 	}
 
 	logDialog(html) {
-		return new Promise( (conf, rej) => {
+		return new Promise( (conf, _rej) => {
 			const options = { width: 700 };
 			const dialog = new Dialog ( {
 				title : "Roll Log",
