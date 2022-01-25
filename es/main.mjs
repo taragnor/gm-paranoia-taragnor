@@ -37,12 +37,13 @@ class TaragnorSecurity {
 		});
 	}
 
-	static dispatchCheaterMsg(player_id, infraction) {
+	static dispatchCheaterMsg(player_id, infraction, rollId) {
 		this.socketSend( {
 			command: PUNISH_MONGREL,
 			target: player_id,
 			infraction,
-			player_id
+			player_id,
+			rollId
 		});
 	}
 
@@ -75,7 +76,7 @@ class TaragnorSecurity {
 		}
 	}
 
-	static async sendDiagnostic({gm_id}) {
+	static async sendDiagnostic({gm_id, rollId}) {
 		let diagnostics = {};
 		for ( const x of Object.getOwnPropertyNames(Roll.prototype)) {
 			try {
@@ -89,7 +90,8 @@ class TaragnorSecurity {
 		this.socketSend({
 			target: gm_id,
 			command:DIAGNOSTIC,
-			diagnostics
+			diagnostics,
+			rollId
 		});
 
 	}
@@ -127,7 +129,7 @@ class TaragnorSecurity {
 		await this.logger.logRoll(roll, player_id, gm_timestamp);
 	}
 
-	static async cheatDetectRecieved({player_id, infraction}) {
+	static async cheatDetectRecieved({player_id, infraction, rollId}) {
 		if (game.user.id != player_id)
 			return;
 		const GMId = game.users.find( x=> x.isGM).id;
@@ -143,7 +145,7 @@ class TaragnorSecurity {
 		}
 	}
 
-	static async recieveCheaterDiagnostic({diagnostics}) {
+	static async recieveCheaterDiagnostic({diagnostics, rollId}) {
 		console.log("*** Diagnostic Recieved from suspected Cheater ***");
 		let violations = new Array();
 		for (const x in diagnostics) {
@@ -152,9 +154,18 @@ class TaragnorSecurity {
 				violations.push(`${x}:${diagnostics[x]}`);
 			}
 		}
-		if (violations.length == 0)
-			console.log("No signs of tampering with the Roll functions");
+		if (violations.length > 0) {
+			const logs = game.messages.filter(x=> x?.roll?.options?._securityId == rollId);
+			for (let log of logs) {
+				await this.updateLogFullCheat(log);
+			}
+		} else
+				console.log("No signs of tampering with the Roll functions");
 		return violations;
+	}
+
+	static async updateLogFullCheat(log) {
+		//TODO Finish
 	}
 
 	static async socketHandler(data) {
@@ -300,20 +311,20 @@ class TaragnorSecurity {
 	static susMessage(html, reason, chatmessage) {
 		const insert_target = html.find(".message-header");
 		html.addClass("player-sus");
-		$(`<div class="player-sus"> ${chatmessage.user.name} is Sus (${reason}) </div>`).insertBefore(insert_target);
+		$(`<div class="player-sus security-msg"> ${chatmessage.user.name} is Sus (${reason}) </div>`).insertBefore(insert_target);
 		this.dispatchCheaterMsg(chatmessage.user.id, "sus");
 	}
 
 	static cheaterMessage(html, reason, chatmessage) {
 		const insert_target = html.find(".message-header");
 		html.addClass("cheater-detected");
-		$(`<div class="cheater-detected"> ${chatmessage.user.name} is a cheater (${reason}) </div>`).insertBefore(insert_target);
-		this.dispatchCheaterMsg(chatmessage.user.id, "cheater");
+		$(`<div class="cheater-detected security-msg"> ${chatmessage.user.name} is a cheater (${reason}) </div>`).insertBefore(insert_target);
+		this.dispatchCheaterMsg(chatmessage.user.id, "cheater", chatmessage.roll.options._securityId);
 	}
 
 	static verifyMessage(html, _reason, _chatmessage) {
 		const insert_target = html.find(".message-header");
-		const insert = $(`<div class="roll-verified"> Roll Verified </div>`);
+		const insert = $(`<div class="roll-verified security-msg"> Roll Verified </div>`);
 		this.startTextAnimation(insert);
 		html.addClass("roll-verified");
 		insert.insertBefore(insert_target);

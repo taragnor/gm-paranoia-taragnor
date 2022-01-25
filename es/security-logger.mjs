@@ -62,7 +62,7 @@ export class SecurityLogger {
 			const span = timestamp - roll.options._securityTS;
 			if (Number.isNaN(span))
 				throw new Error("NaN value");
-			const stale  = span > SecurityLogger.staleCounter; 
+			const stale  = span > SecurityLogger.staleCounter;
 			if (stale)
 				console.log(`Stale roll count: ${span}`);
 			return stale;
@@ -87,12 +87,14 @@ export class SecurityLogger {
 			return "not_found";
 		if (!SecurityLogger.rollsIdentical(exists.roll, roll)){
 			exists.status = "roll_modified";
+			exists.used = chatlog_id;
 			return exists.status;
 		}
 		if (exists.used == chatlog_id)
 			return exists.status;
 		if (exists.used)  {
 			exists.status = "roll_used_multiple_times";
+			exists.used = chatlog_id;
 			return exists.status;
 		}
 		if (recentLogs.filter( x=> !x.used).length > 1) {
