@@ -9,8 +9,8 @@ so I would suspect most systems are using async by now.
 If a player is flagged as sus that means they've been making legitimate rolls but haven't posted all of them, or posted them out of order. 
 The rolls themselves are verified, but they could be banking them and cherry picking the good ones to show. Some systems may get a false positive here if the system makes secret rolls and doesn't post them to chat in any way. 
 
-##Caveats
-synchronous rolls such as inline rolls using double brackets in chat, aren't able to be analyzed in this way and as such should be considered insecure. 
+## Caveats
+Synchronous rolls such as inline rolls using double brackets in chat, aren't able to be analyzed in this way and as such should be considered insecure. 
 
 This system will also generate false positives if there are multiple GMs. 
 
