@@ -17,7 +17,7 @@ class TaragnorSecurity {
 	static async SecurityInit() {
 		if (game.user.isGM)
 			console.log("*** SECURITY ENABLED ***");
-		game.socket.on("module.secure-foundry", this.socketHandler.bind(this));
+		game.socket.on("module.gm-paranoia-taragnor", this.socketHandler.bind(this));
 		this.logger = new SecurityLogger(logpath);
 		if (this.replaceRollProtoFunctions)
 			this.replaceRollProtoFunctions();
@@ -108,7 +108,7 @@ class TaragnorSecurity {
 	}
 
 	static socketSend(data) {
-		game.socket.emit('module.secure-foundry', data);
+		game.socket.emit('module.gm-paranoia-taragnor', data);
 	}
 
 	static async recievedRollRequest({gm_id, rollString, player_id, timestamp}) {
@@ -408,7 +408,7 @@ class TaragnorSecurity {
 		await this.reportIn(gm_id);
 	}
 
-	static async onAcknowledgePlayerReportIn(data) {
+	static async onAcknowledgePlayerReportIn(_data) {
 		this.logger.reported = true;
 	}
 }
@@ -432,7 +432,7 @@ Hooks.on("getSceneControlButtons", function(controls) {
 
 //DEBUG CODE
 	// window.secureRoll = TaragnorSecurity.secureRoll.bind(TaragnorSecurity);
-	window.sec = TaragnorSecurity;
+	// window.sec = TaragnorSecurity;
 	// window.rollRequest = TaragnorSecurity.rollRequest.bind(TaragnorSecurity);
 
 

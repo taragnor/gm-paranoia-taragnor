@@ -1,13 +1,13 @@
 {
-  "name": "secure-foundry",
-  "title": "Taragnor's Foundry Security",
-  "version": "1.0.0",
+  "name": "gm-paranoia-taragnor",
+  "title": "Taragnor's GM Paranoia",
+  "version": "1.0.1",
   "esmodules": ["./es/main.mjs"],
   "styles": ["./css/style.css"],
   "author": "taragnor",
   "minimumCoreVersion": "9",
   "compatibleCoreVersion": "9",
   "socket": true,
-  "manifest": "https://raw.githubusercontent.com/taragnor/foundry-security/main/module.json",
-  "download": "https://github.com/taragnor/foundry-security/archive/refs/tags/v.1.0.0.zip"
+  "manifest": "https://raw.githubusercontent.com/taragnor/gm-paranoia-taragnor/main/module.json",
+  "download": "https://github.com/taragnor/gm-paranoia-taragnor/archive/refs/tags/v.1.0.1.zip"
 }
