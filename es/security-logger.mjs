@@ -157,7 +157,7 @@ export class SecurityLogger {
 					status: x.status
 				};
 			});
-		const html = await renderTemplate("modules/secure-foundry/hbs/roll-log.hbs", { logs});
+		const html = await renderTemplate("modules/gm-paranoia-taragnor/hbs/roll-log.hbs", { logs});
 		return await this.logDialog(html);
 	}
 
