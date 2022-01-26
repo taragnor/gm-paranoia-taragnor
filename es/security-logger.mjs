@@ -162,7 +162,7 @@ export class SecurityLogger {
 	}
 
 	logDialog(html) {
-		return new Promise( (conf, rej) => {
+		return new Promise( (conf, _rej) => {
 			const options = { width: 700 };
 			const dialog = new Dialog ( {
 				title : "Roll Log",
