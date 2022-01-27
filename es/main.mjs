@@ -406,7 +406,7 @@ class TaragnorSecurity {
 	}
 
 	static async reportInRecieved({player_id}) {
-		console.log(`${game.users.get(player_id).name} has reported in`);
+		console.debug(`${game.users.get(player_id).name} has reported in`);
 		this.logger.playerSignIn(player_id);
 		await this.sendReportAcknowledge(player_id);
 	}
