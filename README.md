@@ -1,9 +1,13 @@
 # Taragnor's GM Paranoia for Foundry VTT
+
+
 *Author:* Taragnor
 
 This module includes security measures for the paranoid GM to ensure players aren't engaging in anything sneaky. 
 
+
 # GM-side Roll Scanning
+![paranoia](https://user-images.githubusercontent.com/31339311/151412578-c83d38f3-0948-4624-b17e-d2793505231d.jpg)
 
 Analyzes rolls to make sure players aren't fudging rolls. All rolls are requested through the GM machine and recieve a "Roll Verified" message at the top of any messages that have been analyzed. The analysis message is visible only to the GM. Cheating messages will be highlighted in red and suspicious messages will be highlighted in yellow. Note that when active, a player can't make rolls unless a GM is present in the server.  
 
