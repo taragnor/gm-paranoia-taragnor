@@ -119,13 +119,21 @@ class TaragnorSecurity {
 		}
 		// console.log(`Recieved request to roll ${rollString}`);
 		const dice = new Roll(rollString);
-		let roll = await dice.evaluate({async:true});
+		let roll;
+		try {
+			roll = await dice.evaluate({async:true});
+		} catch (e) {
+			Debug(dice);
+			throw e;
+		}
 		const log_id = this.logger.getNextId();
 		// this._displayRoll(roll); // NOTE: debug code
 		const gm_timestamp = this.logger.getTimeStamp();
 		dice.options._securityTS = gm_timestamp;
 		dice.options._securityId = log_id;
 		this.rollSend(JSON.stringify(roll), gm_timestamp, player_id, timestamp, log_id);
+		if (!gm_timestamp)
+			console.warn("No Timestamp provided with roll");
 		await this.logger.logRoll(roll, player_id, gm_timestamp);
 	}
 

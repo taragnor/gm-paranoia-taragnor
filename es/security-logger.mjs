@@ -48,10 +48,13 @@ export class SecurityLogger {
 	checkBasicFind(roll) {
 		try {
 			const index = roll.options._securityId;
+			if (index == undefined)
+				throw new Error("Index Not defined on roll");
 			const log = this.logs[index];
 			if (log.timestamp == roll.options._securityTS)
 				return log;
 		} catch (e) {
+			Debug(roll);
 			console.warn(e);
 		}
 		return null;
@@ -79,8 +82,6 @@ export class SecurityLogger {
 			x.player_id == player_id
 			&& timestamp - x.timestamp < SecurityLogger.recentCounter
 		);
-		// const recentLogs = this.getRecentRolls(player_id, timestamp);
-		// const already_done = recentLogs.find( x=> x.used == chatlog_id && SecurityLogger.rollsIdentical(x.roll, roll));
 		if (!this.players.find( x=> x == player_id))
 			return "no-report";
 		if (!exists)
