@@ -215,7 +215,6 @@ class TaragnorSecurity {
 		if (typeof unevaluatedRoll == "string") {
 			//convert string roll to real roll
 			unevaluatedRoll = new Roll(unevaluatedRoll);
-			// console.log("Converted String roll to real roll");
 		}
 		if (game.user.isGM)  {
 			return await unevaluatedRoll.evaluate({async: true});
