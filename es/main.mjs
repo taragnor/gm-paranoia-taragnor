@@ -1,9 +1,11 @@
 import { SecurityLogger } from "./security-logger.mjs";
 import { } from "./debug.mjs";
+import { } from "./roller-patch.mjs";
 
 
 
 const ROLL_MADE = "ROLL_MADE";
+const ROLL_ERROR = "ROLL_ERROR";
 const ROLL_REQUEST = "ROLL_REQUEST";
 const PUNISH_MONGREL= "CHEATER_DETECTED";
 const DIAGNOSTIC= "DIAGNOSTIC";
@@ -59,9 +61,22 @@ class TaragnorSecurity {
 		});
 	}
 
+	static rollErrorSend(player_id, player_timestamp) {
+		this.socketSend( {
+			command:ROLL_ERROR,
+			target: player_id,
+			player_id,
+			player_timestamp: player_timestamp
+		});
+	}
+
 	static async rollRecieve({dice: rollData, player_timestamp, player_id, timestamp: gm_timestamp, log_id}) {
 		try {
 			const roll = Roll.fromJSON(rollData);
+			if (!roll.security) {
+				console.log(rollData);
+				throw new Error("NO security data");
+			}
 			const awaited = this.logger.awaitedRolls.find( x=> x.timestamp == player_timestamp && player_id == game.user.id);
 			if (Number.isNaN(roll.total) || roll.total == undefined) {
 				throw new Error("NAN ROLL");
@@ -74,6 +89,14 @@ class TaragnorSecurity {
 			console.log(rollData);
 			return rollData;
 		}
+	}
+
+	static async rollRecieveError({player_timestamp, player_id}) {
+		console.log(`${player_timestamp}, ${player_id}`);
+		const awaited = this.logger.awaitedRolls.find( x=> x.timestamp == player_timestamp && player_id == game.user.id);
+		this.logger.awaitedRolls = this.logger.awaitedRolls.filter (x => x != awaited);
+		Debug(awaited);
+		awaited.reject();
 	}
 
 	static async sendDiagnostic({gm_id, rollId}) {
@@ -118,20 +141,30 @@ class TaragnorSecurity {
 			return;
 		}
 		// console.log(`Recieved request to roll ${rollString}`);
-		const dice = new Roll(rollString);
-		let roll;
+		let roll = Roll.fromJSON(rollString);
+		// const dice = new Roll(rollString);
 		try {
-			roll = await dice.evaluate({async:true});
+			console.log(roll.total);
+			if (!roll.total)
+				roll._evaluated = false;
+			roll = await roll.evaluate({async:true});
 		} catch (e) {
-			Debug(dice);
-			throw e;
+			Debug(roll);
+			console.warn("returning Roll Error");
+			this.rollErrorSend(player_id, timestamp);
+			return;
 		}
 		const log_id = this.logger.getNextId();
 		// this._displayRoll(roll); // NOTE: debug code
 		const gm_timestamp = this.logger.getTimeStamp();
-		dice.options._securityTS = gm_timestamp;
-		dice.options._securityId = log_id;
-		this.rollSend(JSON.stringify(roll), gm_timestamp, player_id, timestamp, log_id);
+		roll.options._securityTS = gm_timestamp;
+		roll.options._securityId = log_id;
+		roll.security = {
+			TS: gm_timestamp,
+			log_id
+		};
+		const json = roll.toJSON();
+		this.rollSend(JSON.stringify(json), gm_timestamp, player_id, timestamp, log_id);
 		if (!gm_timestamp)
 			console.warn("No Timestamp provided with roll");
 		await this.logger.logRoll(roll, player_id, gm_timestamp);
@@ -188,6 +221,9 @@ class TaragnorSecurity {
 			case ROLL_MADE:
 				await this.rollRecieve(data);
 				return true;
+			case ROLL_ERROR:
+				await this.rollRecieveError(data);
+				return true;
 			case PUNISH_MONGREL:
 				await this.cheatDetectRecieved(data);
 				return true;
@@ -230,7 +266,9 @@ class TaragnorSecurity {
 			});
 			const GMId = game.users.find( x=> x.isGM).id;
 			if (!GMId) rej(new Error("No GM in game"));
-			this.rollRequest(unevaluatedRoll.formula, timestamp, GMId);
+			const json = JSON.stringify(unevaluatedRoll.toJSON());
+			this.rollRequest(json, timestamp, GMId);
+			// this.rollRequest(unevaluatedRoll.formula, timestamp, GMId);
 		});
 	}
 
@@ -240,14 +278,25 @@ class TaragnorSecurity {
 
 		Roll.prototype._evaluate = async function (options ={}) {
 			if (game.user.isGM) {
-				return this._oldeval(options);
+				try {
+					return this._oldeval(options);
+				} catch (e) {
+					Debug(this);
+					throw e;
+				}
 			} else {
 				// console.warn("Running Secure Client Roll");
-				const {roll, gm_timestamp, log_id} = await TaragnorSecurity.secureRoll(this);
-				TaragnorSecurity.replaceRoll(this, roll);
-				this.options._securityTS = gm_timestamp;
-				this.options._securityId = log_id;
-				return this;
+				try {
+					const {roll, gm_timestamp, log_id} = await TaragnorSecurity.secureRoll(this);
+					TaragnorSecurity.replaceRoll(this, roll);
+					this.options._securityTS = gm_timestamp;
+					this.options._securityId = log_id;
+					return this;
+				}
+				catch (e) {
+					this._evaluated = false;
+					throw e;
+				}
 			}
 		}
 

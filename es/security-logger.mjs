@@ -75,7 +75,6 @@ export class SecurityLogger {
 		return false;
 	}
 
-
 	verifyRoll(roll, timestamp, player_id, chatlog_id) {
 		const exists = this.checkBasicFind(roll, timestamp);
 		const recentLogs = this.logs.filter( x=>
